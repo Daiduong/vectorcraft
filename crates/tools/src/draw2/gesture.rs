@@ -324,6 +324,25 @@ impl GestureTool {
         v
     }
 
+    /// The preview of a stroke being drawn: [`Self::freehand_params`], except that a stroke that
+    /// redraws a selected path is shown as it is drawn, joined at its start to the point of the
+    /// path nearest to it, with no fill, and leaves the path as it is: where the stroke ends is
+    /// only known at the release, which redraws the path (`finish`).
+    fn drawing_params(&self, cx: &ToolContext) -> Value {
+        let mut v = self.freehand_params(false);
+        let Some((id, _)) = self.redraw else { return v };
+        if let Some(o) = v.as_object_mut() {
+            o.remove("redraw");
+        }
+        v["fill"] = json!(false);
+        v["keepSelected"] = json!(false);
+        let on = self.points.first().and_then(|&p| cx.doc.node(id)?.path_data()?.nearest(p)).map(|n| n.3);
+        if let (Some(on), Some(pts)) = (on, v["points"].as_array_mut()) {
+            pts.insert(0, json!([on.x, on.y]));
+        }
+        v
+    }
+
     fn finish(&mut self, cx: &ToolContext, m: Mods) -> Vec<Action> {
         let pts = &self.points;
         let has_sel = !cx.selection.is_empty();
@@ -471,7 +490,7 @@ impl Tool for GestureTool {
                 }
                 if crate::previews_at(self.points.len()) {
                     self.previewed = self.points.len();
-                    let mut v = self.freehand_params(false);
+                    let mut v = self.drawing_params(cx);
                     if !self.live_fit {
                         // Live curve fitting off: the release fits the stroke (`finish`).
                         v["fit"] = json!(false);
@@ -552,10 +571,11 @@ impl Tool for GestureTool {
     }
     fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
         let began = self.began;
-        // Drags past the last preview are in the stroke kept, too, and with Live curve fitting
-        // off the stroke kept is fitted.
-        let stale = (began && (self.previewed != self.points.len() || !self.live_fit) && self.draws_path() && !self.smoothing)
-            .then(|| Action::Preview("path.freehand".into(), self.freehand_params(false)));
+        // Drags past the last preview are in the stroke kept, too, with Live curve fitting off the
+        // stroke kept is fitted, and a stroke that redraws a path redraws it (`drawing_params`).
+        let stale =
+            (began && (self.previewed != self.points.len() || !self.live_fit || self.redraw.is_some()) && self.draws_path() && !self.smoothing)
+                .then(|| Action::Preview("path.freehand".into(), self.freehand_params(false)));
         self.snap.clear();
         self.active = false;
         self.near_start = false;
@@ -1041,6 +1061,47 @@ mod tests {
         assert_eq!(t.cursor(&cx, at, shift), Cursor::Pencil, "a freehand stroke");
         assert_eq!(GestureTool::new("paintbrush").cursor(&cx, at, shift), Cursor::Paintbrush);
         assert_eq!(Cursor::PencilStraight.precise(), Cursor::Crosshair, "Use Precise Cursors");
+    }
+
+    /// While a stroke that redraws a selected path is drawn, its previews show the stroke as drawn,
+    /// joined at its start to the path, unfilled, and leave the path and the selection as they are;
+    /// the release (or a switch of tool mid-stroke) redraws the path.
+    #[test]
+    fn pencil_previews_a_redraw_as_the_stroke_drawn_and_redraws_at_the_release() {
+        let (mut d, _) = doc_with_rect();
+        let l = d.layers[0].id;
+        let id = d.alloc_id();
+        let line = vectorcraft_geom::PathData::from_bezpath(&vectorcraft_geom::BezPath::from_vec(vec![
+            vectorcraft_geom::PathEl::MoveTo(Point::new(300.0, 300.0)),
+            vectorcraft_geom::PathEl::LineTo(Point::new(400.0, 300.0)),
+        ]));
+        d.insert(Some(l), 1, vectorcraft_doc::Node::path(id, line, vectorcraft_doc::Appearance::default_art())).unwrap();
+        let mut s = Selection::default();
+        s.set([id]);
+        let p = paint();
+        let mut cx = cx(&d, &s, &p);
+        cx.smart_guides = false;
+        let mut t = GestureTool::new("pencil");
+        t.set_option("fill", &json!(true));
+        // Out from the path and back onto it: within Edit selected paths within all the way.
+        let acts = drag(&mut t, &cx, &[(350.0, 304.0), (352.0, 308.0), (356.0, 309.0), (360.0, 303.0)], Mods::default());
+        let (release, drawing) = acts.split_last().unwrap();
+        let previews: Vec<&Value> = drawing.iter().flatten().filter_map(|a| if let Action::Preview(_, v) = a { Some(v) } else { None }).collect();
+        assert!(!previews.is_empty(), "{acts:?}");
+        for v in previews {
+            assert!(v.get("redraw").is_none() && v["fill"] == false && v["keepSelected"] == false, "{v}");
+            assert_eq!(v["points"][0], json!([350.0, 300.0]), "joined to the path where it starts: {v}");
+            assert_eq!(v["points"][1], json!([350.0, 304.0]), "{v}");
+        }
+        assert!(
+            matches!(release.as_slice(), [Action::Preview(_, v), Action::Commit] if v["redraw"]["id"] == id.0 && v["fill"] == true),
+            "{release:?}"
+        );
+        // A switch of tool mid-stroke keeps the redraw too.
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 350.0, 304.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 352.0, 320.0));
+        let acts = t.deactivate(&cx);
+        assert!(matches!(acts.as_slice(), [Action::Preview(_, v), Action::Commit] if v["redraw"]["id"] == id.0), "{acts:?}");
     }
 
     /// Before a press, the Pencil shows its new-path cursor (the star) exactly when the press draws
