@@ -1,5 +1,7 @@
 # Hardware parity
 
+> **Last updated:** 2026-10-26 · **Change:** minor (shared OCLP wgpu compatibility proposal; scores and estimates unchanged).
+
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-24 · **Change:** minor (pen pressure and the pen's eraser end on macOS, read from AppKit's tablet events, #852, not yet tried on a Mac; previously: patch: web pen buttons/modifiers preserved, touch-only input left to eframe, session-only palm rejection; tool cursors painted into the window on Wayland, #1652, not run on Linux; borderless title-bar window on Windows, #1758, awaiting confirmation; a window surface larger than 8192 px keeps working, #1459 in part; Linux Display Server preference opens the window through XWayland, #1151) · **Target:** Adobe Illustrator 2026 (30.x)
 
 What hardware Illustrator uses, per platform, against VectorCraft. Illustrator's side is from its public
@@ -8,6 +10,8 @@ documentation (GPU Performance, touch workspace, pen pressure pages); ours from 
 [target-app-parity.md](target-app-parity.md).
 
 ## Summary
+
+The [OCLP wgpu proposal](oclp-wgpu-fork.md) records the pinned compatibility fork, hardware evidence and remaining compiler-probe delay. It does not change hardware parity scores.
 
 **~35% (estimated), 25–45 h.** VectorCraft rasterizes the canvas on the CPU (multithreaded `vello_cpu`) and uses
 the GPU only to composite, so any GPU that can show a window works, at the cost of GPU-accelerated preview
@@ -36,6 +40,7 @@ reads the pen's eraser end on Windows, on macOS and on Linux under X11 and XWayl
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-26 | minor | Propose the shared OCLP wgpu backport with internal validation preserved; qualification and known compiler-probe delay documented; scores and estimates unchanged. |
 | 2026-10-24 | minor | macOS: an AppKit local event monitor reads each mouse and tablet event's pen pressure and the pen's end before the window gets it and writes them into the canvas's pen feed (#852): each pointer move of a stroke keeps its own pressure, mouse event coalescing is off, and the eraser end selects the Eraser tool. The mapping is unit-tested on every platform and the macOS code type-checks for `aarch64-apple-darwin`; not yet tried on a Mac with a tablet, so the score is unchanged (estimated) |
 | 2026-10-15 | patch | Web review: preserve pen buttons and modifiers; leave fingers to eframe before the first pen contact; remove persistent pen policy. Canvas regression tests cover intermediate moves and long-touch cancellation on native and web input. Physical-device QA pending. |
 | 2026-10-14 | minor | Tool cursors are painted into the window on Wayland (#1652; not run on Linux, #1645 stays open until confirmed); On Windows the custom title bar's window stays truly borderless, so the pointer lines up with what is drawn on systems where the hidden caption offset it (#1791, #1758; awaiting the reporter's confirmation); neither is confirmed on the hardware that reported it, so nothing is marked done |

@@ -141,6 +141,8 @@ lto = "thin"
 codegen-units = 1
 
 [patch.crates-io]
+# Shared OCLP Metal compatibility backport; see docs/oclp-wgpu-fork.md.
+wgpu = { git = "https://github.com/ITJamie/wgpu-fork", rev = "21c08e23135ba27ed1c6b68177ecc20c0d076dd9" }
 hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f" }
 hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f" }
 hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "a0916808f7d78bed8c7b90cdf937176015454a7f" }
