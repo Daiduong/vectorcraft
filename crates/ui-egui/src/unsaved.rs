@@ -29,7 +29,27 @@ pub fn close(app: &mut VectorcraftApp, i: usize) -> Result<Value, String> {
     // A save still running decides whether there is anything left to save.
     crate::background::wait_all(app);
     let dirty = app.session.documents().get(i).ok_or("no such document")?.is_dirty();
-    if dirty { ask(app, i, "close") } else { close_now(app, i) }
+    if dirty {
+        return ask(app, i, "close");
+    }
+    // A host's storage may still be saving it: it closes once the host answers.
+    if saving_to_host(app) {
+        let uid = app.session.documents()[i].uid;
+        return Ok(close_when_saved(app, Some(uid), "close"));
+    }
+    close_now(app, i)
+}
+
+/// A save a host's storage hasn't answered yet: closing waits for it, so a save that fails
+/// still finds its document open ([`save_settled`]).
+fn saving_to_host(app: &VectorcraftApp) -> bool {
+    app.services.save_in_flight.as_ref().is_some_and(|f| f())
+}
+
+/// Close document `uid` (or, with `None`, carry on Close All or Quit) once the host's saves are done.
+fn close_when_saved(app: &mut VectorcraftApp, uid: Option<u64>, then: &str) -> Value {
+    app.close_when_saved.push((uid, then.to_string()));
+    json!({ "pending": "save" })
 }
 
 /// File → Close All (`then` = `closeAll`) or Quit (`quit`): ask about the next modified document,
@@ -39,6 +59,9 @@ pub fn close_all(app: &mut VectorcraftApp, then: &str) -> Result<Value, String> 
     crate::background::wait_all(app);
     if let Some(i) = app.session.documents().iter().position(|d| d.is_dirty()) {
         return ask(app, i, then);
+    }
+    if saving_to_host(app) {
+        return Ok(close_when_saved(app, None, then));
     }
     if then == "quit" {
         // Nothing unsaved is left: no recovery copies either.
@@ -111,11 +134,43 @@ pub fn confirm(app: &mut VectorcraftApp) -> Result<Value, String> {
                 return Err(format!("{}: not saved, so not closed", d.title()));
             }
         }
+        // A host's storage finishes the save later: the document stays open until it does.
+        if saving_to_host(app) {
+            let uid = app.session.documents()[i].uid;
+            return Ok(close_when_saved(app, Some(uid), &d.str("then")));
+        }
     }
     close_now(app, i)?;
-    match d.str("then").as_str() {
+    carry_on(app, &d.str("then"))
+}
+
+/// After a Save Changes prompt closed its document: stop there, or ask about the next one.
+fn carry_on(app: &mut VectorcraftApp, then: &str) -> Result<Value, String> {
+    match then {
         "close" => Ok(Value::Null),
         then => close_all(app, then),
+    }
+}
+
+/// The saves a host's storage was still making have all reported back ([`io::save_settled`]):
+/// run the closes that waited for them, in order. A document whose save failed or was cancelled
+/// is modified again, so it stays open (Close All and Quit ask about it), and so does one changed
+/// since.
+pub(crate) fn save_settled(app: &mut VectorcraftApp) {
+    if saving_to_host(app) {
+        return;
+    }
+    for (uid, then) in std::mem::take(&mut app.close_when_saved) {
+        let r = match uid {
+            Some(uid) => match app.session.documents().iter().position(|d| d.uid == uid && !d.is_dirty()) {
+                Some(i) => close_now(app, i).and_then(|_| carry_on(app, &then)),
+                None => continue,
+            },
+            None => close_all(app, &then),
+        };
+        if let Err(e) = r {
+            app.status(e);
+        }
     }
 }
 
@@ -199,6 +254,79 @@ mod tests {
         assert!(confirm(&mut app).is_err());
         assert_eq!(docs(&app), 1);
         assert!(app.ui.dialog.is_none());
+    }
+
+    /// Save Changes → Save through a host's storage closes the document only once the host has it.
+    #[test]
+    fn a_save_the_host_finishes_later_closes_the_document_only_once_done() {
+        let busy = std::rc::Rc::new(std::cell::Cell::new(false));
+        let b = busy.clone();
+        let mut app = VectorcraftApp::new(
+            Session::new(),
+            crate::Services {
+                download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))),
+                save_in_flight: Some(Box::new(move || b.get())),
+                ..Default::default()
+            },
+        );
+        let path = "cloud:home/art/Poster.vectorcraft";
+        new_doc(&mut app, false);
+        new_doc(&mut app, true);
+        app.run("file.save", json!({ "path": path })).unwrap();
+        app.run("shape.rectangle", json!({ "x": 20, "y": 20, "width": 5, "height": 5 })).unwrap();
+        let uid = app.session.documents()[1].uid;
+        // The host fails: the document stays open and modified.
+        close(&mut app, 1).unwrap();
+        busy.set(true);
+        assert_eq!(confirm(&mut app).unwrap(), json!({ "pending": "save" }));
+        assert_eq!(docs(&app), 2);
+        busy.set(false);
+        io::save_settled(&mut app, Some(uid), path, false, None);
+        assert_eq!(docs(&app), 2);
+        assert!(app.session.documents()[1].is_dirty());
+        // The host saves it: then it closes.
+        close(&mut app, 1).unwrap();
+        busy.set(true);
+        confirm(&mut app).unwrap();
+        assert_eq!(docs(&app), 2);
+        busy.set(false);
+        io::save_settled(&mut app, Some(uid), path, true, None);
+        assert_eq!(docs(&app), 1);
+        // A plain Close or Close All while the host saves waits for it too.
+        new_doc(&mut app, false);
+        busy.set(true);
+        assert_eq!(close(&mut app, 1).unwrap(), json!({ "pending": "save" }));
+        assert_eq!(app.run("file.closeAll", json!({})).unwrap(), json!({ "pending": "save" }));
+        assert_eq!(docs(&app), 2);
+        busy.set(false);
+        io::save_settled(&mut app, None, "Other.png", true, None);
+        assert_eq!(docs(&app), 0, "both closes ran once the host was done");
+    }
+
+    /// Two saves of one document finish in the same frame, the first saved and the second not:
+    /// the document stays open and modified, though the first alone would have let it close.
+    #[test]
+    fn a_failed_save_later_in_the_batch_keeps_the_document_open() {
+        let busy = std::rc::Rc::new(std::cell::Cell::new(false));
+        let b = busy.clone();
+        let mut app = VectorcraftApp::new(
+            Session::new(),
+            crate::Services {
+                download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))),
+                save_in_flight: Some(Box::new(move || b.get())),
+                ..Default::default()
+            },
+        );
+        let path = "cloud:home/art/Poster.vectorcraft";
+        new_doc(&mut app, true);
+        app.run("file.save", json!({ "path": path })).unwrap();
+        let uid = app.session.documents()[0].uid;
+        busy.set(true);
+        assert_eq!(close(&mut app, 0).unwrap(), json!({ "pending": "save" }));
+        busy.set(false);
+        io::saves_settled(&mut app, [(Some(uid), path.to_string(), true, None), (Some(uid), path.to_string(), false, None)]);
+        assert_eq!(docs(&app), 1);
+        assert!(app.session.documents()[0].is_dirty());
     }
 
     #[test]

@@ -270,6 +270,10 @@ pub struct Services {
     pub inbox: Option<Inbox>,
     /// Web: trigger a browser download instead of writing a path.
     pub download: Option<DownloadFn>,
+    /// Web: whether a save handed to `download` is still going (a host's storage, which reports
+    /// back later through [`io::save_settled`]). Closing a document after Save waits for it.
+    /// Without it, `download` is done once it returns.
+    pub save_in_flight: Option<Box<dyn Fn() -> bool>>,
     /// Web: start an async open (bytes arrive via `inbox`).
     pub open_async: Option<Box<dyn FnMut()>>,
     /// Read the system clipboard's text (desktop). Without it, pasted text only arrives with
@@ -518,6 +522,10 @@ pub struct VectorcraftApp {
     clipboard_publishing: sysclip::Publishing,
     /// A URL to open through egui next frame (when the host has no `open_url` service).
     pending_url: Option<String>,
+    /// Closes waiting for the host's storage to finish its saves, in the order asked: the
+    /// document (uid) to close, or `None` for Close All or Quit, and what continues after it
+    /// (`close`, `closeAll` or `quit`). See [`unsaved::save_settled`].
+    pub(crate) close_when_saved: Vec<(Option<u64>, String)>,
     /// Windows and Linux: the window has no OS decorations, so the app bar is the title bar (drag,
     /// double-click to maximize, caption buttons) and invisible edge zones resize the window.
     pub custom_titlebar: bool,
@@ -797,6 +805,7 @@ impl VectorcraftApp {
             clipboard_in: None,
             clipboard_publishing: Default::default(),
             pending_url: None,
+            close_when_saved: Vec::new(),
             control_rx: None,
             pending_screenshots: vec![],
             queued_screenshots: vec![],
@@ -1594,7 +1603,7 @@ impl VectorcraftApp {
         let arrived: Vec<(String, Vec<u8>)> =
             self.services.inbox.as_ref().map(|q| std::mem::take(&mut *q.lock().unwrap_or_else(|e| e.into_inner()))).unwrap_or_default();
         for (name, bytes) in arrived {
-            if let Err(e) = io::open_bytes(self, &name, &bytes, None) {
+            if let Err(e) = io::open_arrived(self, &name, &bytes) {
                 io::report_open_error(self, &name, &e);
             }
         }
