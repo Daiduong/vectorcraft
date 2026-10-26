@@ -267,7 +267,7 @@ fn row(ui: &mut Ui, selected: bool) -> (Rect, egui::Response) {
 fn eye(ui: &mut Ui, r: Rect, id: impl std::hash::Hash + std::fmt::Debug, on: bool, enabled: bool) -> bool {
     let t = Tokens::get(ui.ctx());
     let er = Rect::from_center_size(pos2(r.left() + EYE_W / 2.0, r.center().y), vec2(16.0, 16.0));
-    let resp = ui.interact(er, ui.id().with(id), if enabled { Sense::click() } else { Sense::hover() });
+    let resp = ui.interact(er, ui.scope_id().with(id), if enabled { Sense::click() } else { Sense::hover() });
     let col = if !enabled {
         t.text_disabled
     } else if resp.hovered() {
@@ -282,7 +282,7 @@ fn eye(ui: &mut Ui, r: Rect, id: impl std::hash::Hash + std::fmt::Debug, on: boo
 fn chevron(ui: &mut Ui, r: Rect, id: impl std::hash::Hash + std::fmt::Debug, open: bool) -> bool {
     let t = Tokens::get(ui.ctx());
     let cr = Rect::from_center_size(pos2(r.left() + EYE_W + 12.0, r.center().y), vec2(12.0, 12.0));
-    let resp = ui.interact(cr, ui.id().with(id), Sense::click());
+    let resp = ui.interact(cr, ui.scope_id().with(id), Sense::click());
     icons::paint(ui, if open { "chevron-down" } else { "chevron-right" }, cr, if resp.hovered() { t.text_strong } else { t.icon });
     resp.clicked()
 }
@@ -308,7 +308,7 @@ fn link(ui: &mut Ui, pos: egui::Pos2, id: impl std::hash::Hash + std::fmt::Debug
     let t = Tokens::get(ui.ctx());
     let galley = ui.painter().layout_no_wrap(s.to_string(), egui::FontId::proportional(12.5), t.text_strong);
     let r = Rect::from_min_size(pos2(pos.x, pos.y - galley.size().y / 2.0), galley.size());
-    let resp = ui.interact(r, ui.id().with(id), Sense::click());
+    let resp = ui.interact(r, ui.scope_id().with(id), Sense::click());
     ui.painter().galley(r.min, galley, t.text_strong);
     let mut x = r.left();
     while x < r.right() {
@@ -318,13 +318,80 @@ fn link(ui: &mut Ui, pos: egui::Pos2, id: impl std::hash::Hash + std::fmt::Debug
     resp
 }
 
-/// Open panel `id` as a row's popup: it pops out next to the icon column even where it is a tab
-/// already (in the dock or a floating group), closes once a press lands outside it, and its first
-/// text field takes the keyboard ([`crate::state::UiState::transient_panel`]).
-pub(crate) fn open_popup(app: &mut VectorcraftApp, id: &str) {
-    app.ui.open_panel = Some(id.into());
+/// Where a row's popup opens: the height of the click that opened it (panel state).
+const POPUP_AT: &str = "ap-popup-at";
+/// The frame the row's popup was last drawn in (panel state).
+const POPUP_FRAME: &str = "ap-popup-frame";
+/// The row's popup's width, a floating panel's.
+const POPUP_W: f32 = 260.0;
+/// The room a row's popup keeps from the Appearance panel and the window's edges.
+const POPUP_GAP: f32 = 6.0;
+
+/// Open panel `id` as a row's popup ([`row_popup`]) at the height of the click that opened it; its
+/// first text field takes the keyboard. A panel showing already (in the dock, a floating window or
+/// an icon column's flyout) opens no popup.
+pub(crate) fn open_popup(app: &mut VectorcraftApp, ctx: &egui::Context, id: &str) {
+    if crate::panel_docking::showing(&app.ui, id) {
+        app.ui.transient_panel = None;
+        return;
+    }
     app.ui.transient_panel = Some(id.into());
     app.ui.transient_focus = true;
+    set_pstate(ctx, POPUP_AT, ctx.pointer_interact_pos().map(|p| p.y));
+    // Drawn from the next frame on: this one has gone by already for it.
+    set_pstate(ctx, POPUP_FRAME, Some(ctx.cumulative_frame_nr()));
+}
+
+/// A row's popup ([`open_popup`]): its panel beside the Appearance panel `panel` (left of it, else
+/// right of it when there is no room), level with the row that opened it, so it shows which row it
+/// belongs to. A press outside it, Escape, the Appearance panel going out of sight, or the panel
+/// showing elsewhere puts it away.
+pub(crate) fn row_popup(app: &mut VectorcraftApp, ctx: &egui::Context, panel: Rect) {
+    let Some(id) = app.ui.transient_panel.clone() else { return };
+    let close = |app: &mut VectorcraftApp| {
+        app.ui.transient_panel = None;
+        app.ui.transient_focus = false;
+    };
+    // Drawn in every frame since it opened: the Appearance panel stayed in sight.
+    let frame = ctx.cumulative_frame_nr();
+    let last: Option<u64> = pstate(ctx, POPUP_FRAME);
+    if last.is_none_or(|f| f + 1 < frame) || crate::panel_docking::showing(&app.ui, &id) {
+        return close(app);
+    }
+    set_pstate(ctx, POPUP_FRAME, Some(frame));
+    let area_id = egui::Id::unique("ap-row-popup");
+    let shown = ctx.memory(|m| m.area_rect(area_id));
+    // A press outside it (not one that closes a dropdown the popup opened) or Escape puts it away.
+    let pressed_outside = ctx.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(|p| shown.is_some_and(|r| !r.contains(p))));
+    if pressed_outside && !egui::Popup::is_any_open(ctx) || ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        return close(app);
+    }
+    let screen = ctx.content_rect();
+    let left = panel.left() - POPUP_GAP - POPUP_W;
+    let x = if left >= screen.left() + POPUP_GAP { left } else { (panel.right() + POPUP_GAP).min(screen.right() - POPUP_W - POPUP_GAP) };
+    let at: Option<f32> = pstate(ctx, POPUP_AT);
+    let y = at.unwrap_or(panel.top()) - 14.0;
+    let label = crate::state::all_panels().find(|(p, _)| *p == id).map_or(id.as_str(), |(_, l)| l).to_string();
+    let tall = (screen.height() * 0.6).max(200.0);
+    egui::Area::new(area_id).order(egui::Order::Foreground).fixed_pos(pos2(x, y)).constrain(true).show(ctx, |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(egui::Margin::ZERO).show(ui, |ui| {
+            ui.set_width(POPUP_W);
+            let t = Tokens::get(ui.ctx());
+            egui::Frame::NONE.inner_margin(egui::Margin::symmetric(10, 6)).show(ui, |ui| {
+                ui.label(egui::RichText::new(tl!(&label)).strong().color(t.text_strong));
+            });
+            // Just opened: its first enabled text field takes the keyboard, as a dialog's does.
+            let focus = app.ui.transient_focus;
+            if focus {
+                ui.data_mut(|m| m.insert_temp(widgets::dialog_focus_flag(), true));
+            }
+            crate::dock::panel_body(app, ui, &id, POPUP_W, tall);
+            // Taken (the flag is gone): done. Still there (nothing could take it yet): next frame.
+            if focus && ui.data_mut(|m| m.remove_temp::<bool>(widgets::dialog_focus_flag())).is_none() {
+                app.ui.transient_focus = false;
+            }
+        });
+    });
 }
 
 /// A row's name that edits the row when clicked ([`link`]), with the tooltip "Click to edit".
@@ -385,6 +452,9 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
     bottom(app, ui, node.as_ref(), sel);
     delete_key(app, ui);
+    // A row's popup, beside the panel (in the same window when the panel floats).
+    let panel = ui.max_rect();
+    row_popup(app, ui.ctx(), panel);
 }
 
 /// The panel state that says the Appearance panel's rows have the keyboard ([`super::has_row_keys`]).
@@ -414,7 +484,7 @@ fn delete_key(app: &mut VectorcraftApp, ui: &mut Ui) {
 /// The object row's thumbnail drags this object's appearance onto art ([`PanelDrag::Appearance`];
 /// a chip of its fill follows the pointer).
 fn thumbnail_drag(ui: &mut Ui, th: Rect, id: NodeId) {
-    let resp = ui.interact(th, ui.id().with("ap-thumb"), Sense::drag()).on_hover_text(tl!("Drag onto art to apply this appearance"));
+    let resp = ui.interact(th, ui.scope_id().with("ap-thumb"), Sense::drag()).on_hover_text(tl!("Drag onto art to apply this appearance"));
     widgets::drag_source(ui, &resp, || PanelDrag::Appearance(id));
     if resp.dragged() {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
@@ -469,7 +539,7 @@ fn default_stack(app: &mut VectorcraftApp, ui: &mut Ui) {
         if name_link(ui, pos2(lx, r.center().y), ("ap-def-link", i), label).clicked() {
             // The Color panel then edits this one of the next object's paints.
             app.run("paint.toggleActive", json!({ "fill": it.is_fill() })).ok();
-            open_popup(app, if it.is_fill() { "color" } else { "stroke" });
+            open_popup(app, ui.ctx(), if it.is_fill() { "color" } else { "stroke" });
         }
         // A graphic style can give the next object two fills or strokes with the same target: a
         // child Ui salted by the row keeps their widget ids apart (and, unlike `push_id`, takes no
@@ -568,7 +638,7 @@ fn stack(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, sel: Sel, object_row: 
             select_row(app, ui.ctx(), Sel::Item(i));
             // The panel has the keyboard (Delete removes this row, not the art).
             super::set_row_keys(ui.ctx(), ROW_KEYS, true);
-            open_popup(app, if is_stroke { "stroke" } else { "color" });
+            open_popup(app, ui.ctx(), if is_stroke { "stroke" } else { "color" });
         }
         swatch_button(app, ui, r, paint, Painted::Item(i));
         if let AppearanceItem::Stroke(st) = it {
@@ -705,7 +775,7 @@ fn drag_ghost(app: &VectorcraftApp, ui: &Ui, n: &Node, what: Dragged, order: &[u
         },
         _ => None,
     };
-    widgets::drag_ghost(ui.ctx(), ui.id().with("ap-ghost"), r, |ui, r| {
+    widgets::drag_ghost(ui.ctx(), ui.scope_id().with("ap-ghost"), r, |ui, r| {
         let y = r.center().y;
         match shown {
             Dragged::Item(i) => {
@@ -888,7 +958,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
         if name.clicked() {
             select_row(app, ui.ctx(), Sel::Contents);
             super::set_row_keys(ui.ctx(), ROW_KEYS, true);
-            open_popup(app, "character");
+            open_popup(app, ui.ctx(), "character");
         }
         Some(name)
     } else {
@@ -915,7 +985,7 @@ fn contents_row(app: &mut VectorcraftApp, ui: &mut Ui, n: &Node, label: &str, se
     }
     if resp.double_clicked() {
         if characters {
-            open_popup(app, "color");
+            open_popup(app, ui.ctx(), "color");
         } else if !image {
             app.run("appearance.targetContents", json!({})).ok();
         }
@@ -959,7 +1029,7 @@ fn opacity_row(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, opaci
         super::set_row_keys(ui.ctx(), ROW_KEYS, true);
     }
     if link {
-        open_popup(app, "transparency");
+        open_popup(app, ui.ctx(), "transparency");
     }
     text(ui, pos2(lx + 56.0, r.center().y), &opacity_text(opacity, blend), false);
     r
@@ -1039,87 +1109,90 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
             let ui_keys = manifest.and_then(|m| m.param(key)).map(|p| &p.ui);
             ui.horizontal(|ui| {
                 let label = ui_keys.and_then(|u| u.label.clone()).unwrap_or_else(|| param_label(key, built_in));
-                let shown = ui.add_sized(vec2(84.0, 22.0), egui::Label::new(egui::RichText::new(label.as_str()).size(11.5).color(t.text)).truncate());
-                if let Some(help) = ui_keys.and_then(|u| u.help.as_deref()) {
-                    shown.on_hover_text(help);
-                }
-                if e.id == "stylize.dropShadow" && key == "shade" {
-                    let cur = v.as_str().unwrap_or_default();
-                    for (label, value) in crate::dialogs::SHADES {
-                        if widgets::radio(ui, label, cur.eq_ignore_ascii_case(value), true) && !cur.eq_ignore_ascii_case(value) {
+                let label_node =
+                    ui.add_sized(vec2(84.0, 22.0), egui::Label::new(egui::RichText::new(label.as_str()).size(11.5).color(t.text)).truncate());
+                let label_node = if let Some(help) = ui_keys.and_then(|u| u.help.as_deref()) { label_node.on_hover_text(help) } else { label_node };
+                // The row's actual label node names its fields, including a plug-in's plain text
+                // and number fields (egui 0.37's strict a11y gate).
+                ui.label_inputs_by(label_node.id, |ui| {
+                    if e.id == "stylize.dropShadow" && key == "shade" {
+                        let cur = v.as_str().unwrap_or_default();
+                        for (label, value) in crate::dialogs::SHADES {
+                            if widgets::radio(ui, label, cur.eq_ignore_ascii_case(value), true) && !cur.eq_ignore_ascii_case(value) {
+                                change = Some((key.clone(), json!(value)));
+                            }
+                        }
+                        return;
+                    }
+                    if let Some(options) = crate::dialogs::shown_choices(&e.id, key, &params, cmyk) {
+                        let cur = v.as_str().unwrap_or_default();
+                        let shown = options.iter().find(|(_, value)| value == cur).map_or(cur, |(label, _)| label.as_str());
+                        let labels: Vec<&str> = options.iter().map(|(label, _)| label.as_str()).collect();
+                        if let Some((_, value)) = widgets::dropdown_names(ui, ("fx-choice", item, k, key.as_str()), shown, &labels, 90.0)
+                            .and_then(|i| options.get(i))
+                            .filter(|(_, value)| value != cur)
+                        {
                             change = Some((key.clone(), json!(value)));
                         }
+                        return;
                     }
-                    return;
-                }
-                if let Some(options) = crate::dialogs::shown_choices(&e.id, key, &params, cmyk) {
-                    let cur = v.as_str().unwrap_or_default();
-                    let shown = options.iter().find(|(_, value)| value == cur).map_or(cur, |(label, _)| label.as_str());
-                    let labels: Vec<&str> = options.iter().map(|(label, _)| label.as_str()).collect();
-                    if let Some((_, value)) = widgets::dropdown_names(ui, ("fx-choice", item, k, key.as_str()), shown, &labels, 90.0)
-                        .and_then(|i| options.get(i))
-                        .filter(|(_, value)| value != cur)
+                    // A plug-in's number list is typed as its dialog's is: "45, 135".
+                    if let Some(spec) = manifest.and_then(|m| m.param(key)).map(|p| &p.spec)
+                        && matches!(spec, vectorcraft_plugins::manifest::ParamSpec::NumberList { .. })
                     {
-                        change = Some((key.clone(), json!(value)));
+                        let typed = widgets::exact_text_field(ui, ("fx", item, k, key.as_str()), &crate::dialogs::number_list_text(v), 90.0);
+                        if let Some(list) = typed.and_then(|text| crate::dialogs::read_number_list(&text, spec)) {
+                            change = Some((key.clone(), list));
+                        }
+                        if let Some(unit) = ui_keys.and_then(|u| u.unit.as_deref()) {
+                            widgets::dim_label(ui, unit);
+                        }
+                        return;
                     }
-                    return;
-                }
-                // A plug-in's number list is typed as its dialog's is: "45, 135".
-                if let Some(spec) = manifest.and_then(|m| m.param(key)).map(|p| &p.spec)
-                    && matches!(spec, vectorcraft_plugins::manifest::ParamSpec::NumberList { .. })
-                {
-                    let typed = widgets::exact_text_field(ui, ("fx", item, k, key.as_str()), &crate::dialogs::number_list_text(v), 90.0);
-                    if let Some(list) = typed.and_then(|text| crate::dialogs::read_number_list(&text, spec)) {
-                        change = Some((key.clone(), list));
+                    // Only our own effects show a `mode` parameter as the blend mode dropdown; a plug-in's `mode` stays a plain field.
+                    if built_in && let Some(cur) = widgets::blend_param(key, v) {
+                        if let Some(m) = widgets::blend_param_dropdown(ui, ("fx-blend", item, k, key.as_str()), cur) {
+                            change = Some((key.clone(), m));
+                        }
+                        return;
                     }
-                    if let Some(unit) = ui_keys.and_then(|u| u.unit.as_deref()) {
-                        widgets::dim_label(ui, unit);
-                    }
-                    return;
-                }
-                // Only our own effects show a `mode` parameter as the blend mode dropdown; a plug-in's `mode` stays a plain field.
-                if built_in && let Some(cur) = widgets::blend_param(key, v) {
-                    if let Some(m) = widgets::blend_param_dropdown(ui, ("fx-blend", item, k, key.as_str()), cur) {
-                        change = Some((key.clone(), m));
-                    }
-                    return;
-                }
-                match v {
-                    Value::Bool(b) => {
-                        if widgets::check_box(ui, &label, *b, true) {
-                            change = Some((key.clone(), json!(!b)));
+                    match v {
+                        Value::Bool(b) => {
+                            if widgets::check_box(ui, &label, *b, true) {
+                                change = Some((key.clone(), json!(!b)));
+                            }
+                        }
+                        Value::Number(n) => {
+                            let (x, id) = (n.as_f64().unwrap_or(0.0), ("fx", item, k, key.as_str()));
+                            let suffix = ui_keys.and_then(|u| u.unit.as_deref()).map(crate::dialogs::unit_suffix).unwrap_or_default();
+                            let nx = if vectorcraft_effects::is_length(&e.id, key, relative) {
+                                widgets::num_field(ui, id, Some(x), unit, 70.0)
+                            } else {
+                                widgets::plain_field(ui, id, x, &suffix, 2, 70.0)
+                            };
+                            if let Some(nx) = nx {
+                                change = Some((key.clone(), json!(nx)));
+                            }
+                        }
+                        // Glass's loaded texture shows its size; its dialog's Load Texture… replaces it.
+                        Value::String(s) if key == vectorcraft_effects::pixel::TEXTURE_IMAGE => {
+                            let size = vectorcraft_effects::pixel::texture(s).map(|t| t.size());
+                            widgets::dim_label(ui, &size.map_or_else(String::new, |(w, h)| format!("{w} × {h} px")));
+                        }
+                        Value::String(s) => {
+                            if let Some(typed) = widgets::exact_text_field(ui, ("fx", item, k, key.as_str()), s, 90.0) {
+                                change = Some((key.clone(), json!(typed)));
+                            }
+                        }
+                        // Free Distort's corners are dragged in its dialog.
+                        _ if e.id == crate::dialogs::free_distort::FREE_DISTORT => {
+                            edit |= widgets::flat_button(ui, tl!("Edit…"), 48.0).clicked();
+                        }
+                        other => {
+                            widgets::dim_label(ui, &other.to_string());
                         }
                     }
-                    Value::Number(n) => {
-                        let (x, id) = (n.as_f64().unwrap_or(0.0), ("fx", item, k, key.as_str()));
-                        let suffix = ui_keys.and_then(|u| u.unit.as_deref()).map(crate::dialogs::unit_suffix).unwrap_or_default();
-                        let nx = if vectorcraft_effects::is_length(&e.id, key, relative) {
-                            widgets::num_field(ui, id, Some(x), unit, 70.0)
-                        } else {
-                            widgets::plain_field(ui, id, x, &suffix, 2, 70.0)
-                        };
-                        if let Some(nx) = nx {
-                            change = Some((key.clone(), json!(nx)));
-                        }
-                    }
-                    // Glass's loaded texture shows its size; its dialog's Load Texture… replaces it.
-                    Value::String(s) if key == vectorcraft_effects::pixel::TEXTURE_IMAGE => {
-                        let size = vectorcraft_effects::pixel::texture(s).map(|t| t.size());
-                        widgets::dim_label(ui, &size.map_or_else(String::new, |(w, h)| format!("{w} × {h} px")));
-                    }
-                    Value::String(s) => {
-                        if let Some(typed) = widgets::exact_text_field(ui, ("fx", item, k, key.as_str()), s, 90.0) {
-                            change = Some((key.clone(), json!(typed)));
-                        }
-                    }
-                    // Free Distort's corners are dragged in its dialog.
-                    _ if e.id == crate::dialogs::free_distort::FREE_DISTORT => {
-                        edit |= widgets::flat_button(ui, tl!("Edit…"), 48.0).clicked();
-                    }
-                    other => {
-                        widgets::dim_label(ui, &other.to_string());
-                    }
-                }
+                });
             });
         }
     });
@@ -1163,7 +1236,7 @@ fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, 
     let cr = Rect::from_min_size(pos2(r.left() + EYE_W + 76.0, r.center().y - 9.0), vec2(18.0, 18.0));
     chip(ui, cr, paint);
     let resp = ui
-        .interact(cr.expand(2.0), ui.id().with(("ap-chip", target)), Sense::click())
+        .interact(cr.expand(2.0), ui.scope_id().with(("ap-chip", target)), Sense::click())
         .on_hover_text(tl!("Click to choose a swatch, Shift-click to mix a colour"));
     let mixer = resp.clicked() && ui.input(|inp| inp.modifiers.shift);
     if mixer {
@@ -1176,7 +1249,7 @@ fn swatch_button(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, paint: &Paint, 
                 app.run("paint.toggleActive", json!({ "fill": fill })).ok();
             }
         }
-        open_popup(app, "color");
+        open_popup(app, ui.ctx(), "color");
     }
     egui::Popup::menu(&resp).open_memory((resp.clicked() && !mixer).then_some(egui::SetOpenCommand::Toggle)).show(|ui| {
         swatch_picker(app, ui, target);
@@ -1192,7 +1265,7 @@ fn weight_field(app: &mut VectorcraftApp, ui: &mut Ui, r: Rect, st: &vectorcraft
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(fr).layout(egui::Layout::left_to_right(egui::Align::Center)));
     let unit = app.session.stroke_unit();
     let presets = super::stroke::weight_presets(unit);
-    if let Some(w) = widgets::weight_spin_field(&mut child, ("ap-w", target), Some(st.width), unit, W, &presets) {
+    if let Some(w) = widgets::weight_spin_field(&mut child, ("ap-w", target), Some(tl!("Weight:")), Some(st.width), unit, W, &presets) {
         match target {
             Painted::Item(index) => app.run("appearance.setItem", json!({"index": index, "weight": w})),
             Painted::NewArt { .. } => app.run("stroke.set", json!({ "weight": w })),
@@ -1217,7 +1290,7 @@ fn swatch_picker(app: &mut VectorcraftApp, ui: &mut Ui, target: Painted) {
             let (r, resp) = ui.allocate_exact_size(vec2(15.5, 15.5), Sense::click());
             widgets::swatch_tile(ui, r, p, false, resp.hovered());
             let resp = resp.on_hover_text(name);
-            resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, name));
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
             if resp.clicked() {
                 chosen = Some((name.clone(), p.is_none()));
             }
@@ -2126,6 +2199,33 @@ mod tests {
         for want in ["No Selection: Fancy".to_string(), effect_label("stylize.dropShadow"), "Opacity: 50%".into(), "Dashed".into()] {
             assert!(shown.contains(&want), "{want} in {shown:?}");
         }
+    }
+
+    /// Both stroke rows expose named Weight inputs, and the drop-shadow effect names its Blur input and
+    /// Color radio button.
+    #[test]
+    fn inline_stroke_weight_and_effect_fields_are_named() {
+        use egui_kittest::kittest::Queryable;
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 100, "height": 100})).unwrap();
+        app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 20, "height": 20})).unwrap();
+        app.run("appearance.addStroke", json!({})).unwrap();
+        app.run("effect.apply", json!({"effect": "stylize.dropShadow"})).unwrap();
+        let mut first = true;
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(360.0, 760.0)).with_accessibility_check(false).build_ui_state(
+            move |ui, app: &mut VectorcraftApp| {
+                if std::mem::replace(&mut first, false) {
+                    crate::theme::install_fonts(ui.ctx());
+                    set_pstate(ui.ctx(), "ap-fx-open-None-0", true);
+                }
+                show(app, ui);
+            },
+            app,
+        );
+        h.run_steps(4);
+        assert_eq!(h.get_all_by_role_and_label(egui::accesskit::Role::TextInput, "Weight:").count(), 2, "both stroke rows are named");
+        let _ = h.get_by_role_and_label(egui::accesskit::Role::TextInput, "Blur");
+        let _ = h.get_by_role_and_label(egui::accesskit::Role::RadioButton, "Color");
     }
 
     /// A style that gives the next object two fills and two strokes: each row's swatch and weight

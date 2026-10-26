@@ -202,6 +202,32 @@ fn cmd_slash_adds_a_fill_and_cmd_alt_slash_a_stroke_as_the_panel_buttons_do() {
     assert_eq!(stacks(&app, &ids), before);
 }
 
+/// With nothing selected, Add New Fill and Add New Stroke are off in menus and the command palette
+/// as the Appearance panel's buttons are, and their keys run nothing (no error in the status bar).
+/// Given ids, they still add to those objects.
+#[test]
+fn add_new_fill_and_stroke_are_off_without_a_selection() {
+    let mut app = app_with_rect();
+    let rect = first_selected(&app).expect("the rectangle").id;
+    let items = |app: &VectorcraftApp| app.session.active().expect("a document").doc.node(rect).expect("the rectangle").appearance.items.len();
+    assert!(crate::menus::enabled(&app, "appearance.addFill") && crate::menus::enabled(&app, "appearance.addStroke"));
+    run(&mut app, "select.none", json!({}));
+    let before = items(&app);
+    for (id, modifiers) in
+        [("appearance.addFill", egui::Modifiers::COMMAND), ("appearance.addStroke", egui::Modifiers::COMMAND | egui::Modifiers::ALT)]
+    {
+        assert!(!crate::menus::enabled(&app, id), "{id} is off");
+        let ctx = egui::Context::default();
+        let ev = egui::Event::Key { key: egui::Key::Slash, physical_key: None, pressed: true, repeat: false, modifiers };
+        let mut out = ctx.run_ui(egui::RawInput { events: vec![ev], ..Default::default() }, |ui| crate::shortcuts::handle(&mut app, ui.ctx()));
+        out.textures_delta.clear();
+        crate::menus::invoke(&mut app, id, json!({}));
+        assert_eq!((items(&app), app.ui.status.as_str()), (before, ""), "{id} ran nothing");
+    }
+    crate::menus::invoke(&mut app, "appearance.addFill", json!({"ids": [rect.0]}));
+    assert_eq!((items(&app), app.ui.status.as_str()), (before + 1, ""), "given ids, it adds a fill");
+}
+
 #[test]
 fn transparency_panel_reads_the_active_item() {
     let mut app = app_with_rect();
@@ -261,7 +287,7 @@ fn an_opacity_rows_empty_space_opens_nothing() {
         click(&ctx, &mut app, value.center(), appearance::show);
         let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
         assert!(!texts.iter().any(|(t, _)| t == "Normal"), "no popup with the blend mode: {texts:?}");
-        assert_eq!(app.ui.open_panel, None);
+        assert_eq!(app.ui.transient_panel, None);
     }
 }
 
@@ -635,7 +661,7 @@ fn delete_and_backspace_remove_the_highlighted_rows_after_a_click_in_the_panel()
     assert_eq!(stack_items(&app).len(), 2);
     // A focused text field keeps the key.
     click(&ctx, &mut app, stroke, boxed_panel);
-    ctx.memory_mut(|m| m.request_focus(egui::Id::new("some-field")));
+    ctx.memory_mut(|m| m.request_focus(egui::Id::unique("some-field")));
     key_frame(&ctx, &mut app, egui::Key::Delete);
     assert_eq!(stack_items(&app).len(), 2);
 }
@@ -816,7 +842,7 @@ fn fill_and_stroke_labels_are_links_and_their_empty_space_only_highlights() {
             let ctx = drop_ctx();
             let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
             click_mod(&ctx, &mut app, text_rect(&texts, label).center(), m);
-            assert_eq!(app.ui.open_panel.as_deref(), Some(panel), "{label} {m:?}");
+            assert_eq!(app.ui.transient_panel.as_deref(), Some(panel), "{label} {m:?}");
         }
         let mut app = app_with_rect();
         let ctx = drop_ctx();
@@ -828,7 +854,7 @@ fn fill_and_stroke_labels_are_links_and_their_empty_space_only_highlights() {
         assert!(!tip.iter().any(|t| t.ends_with("to edit")), "{label}: no tooltip on the empty space: {tip:?}");
         click_mod(&ctx, &mut app, space, egui::Modifiers::COMMAND);
         double_click(&ctx, &mut app, space);
-        assert_eq!(app.ui.open_panel, None, "{label}");
+        assert_eq!(app.ui.transient_panel, None, "{label}");
     }
 }
 
@@ -879,8 +905,9 @@ fn after_a_row_click_delete_reaches_the_appearance_panel_not_edit_clear() {
 
 /// The same after a click on a row's name, which also edits the row: "Stroke:" opens the Stroke
 /// panel, the name of an effect without settings its inline editor (one with settings opens a
-/// dialog, which keeps the keys from the app's shortcuts anyway). Delete removes that row and
-/// leaves the object.
+/// dialog, which keeps the keys from the app's shortcuts anyway). Once the Stroke panel's popup is
+/// put away (its field has the keyboard while it is open), Delete removes that row and leaves the
+/// object.
 #[test]
 fn after_a_name_click_delete_reaches_the_appearance_panel_not_edit_clear() {
     for (name, key) in [("Stroke:", egui::Key::Delete), ("Outline Object", egui::Key::Backspace)] {
@@ -891,6 +918,7 @@ fn after_a_name_click_delete_reaches_the_appearance_panel_not_edit_clear() {
         let texts = frame_events(&ctx, &mut app, vec![], boxed_panel);
         let at = text_rect(&texts, name).center();
         app_click(&ctx, &mut app, at, boxed_panel);
+        app_key(&ctx, &mut app, egui::Key::Escape, boxed_panel);
         app_key(&ctx, &mut app, key, boxed_panel);
         assert!(first_selected(&app).is_some(), "{name}: the object stays");
         if name == "Stroke:" {
@@ -936,8 +964,8 @@ fn after_a_contents_click_delete_removes_nothing() {
     }
 }
 
-/// After a Shift-click on a fill/stroke row's swatch (which opens the Color panel on it), Delete
-/// removes that row, not the object.
+/// After a Shift-click on a fill/stroke row's swatch (which opens the Color panel on it) and its
+/// popup put away, Delete removes that row, not the object.
 #[test]
 fn after_a_shift_click_on_a_swatch_delete_removes_its_row() {
     let ctx = drop_ctx();
@@ -953,6 +981,7 @@ fn after_a_shift_click_on_a_swatch_delete_removes_its_row() {
     }
     app_frame(&ctx, &mut app, vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)], boxed_panel);
     assert_eq!(app.session.appearance_item(), Some(1), "the Shift-click selects the stroke row");
+    app_key(&ctx, &mut app, egui::Key::Escape, boxed_panel);
     app_key(&ctx, &mut app, egui::Key::Delete, boxed_panel);
     assert!(first_selected(&app).is_some(), "the object stays");
     assert_eq!(stack_items(&app), [(true, None)], "the stroke goes");
@@ -992,12 +1021,12 @@ fn the_opacity_label_opens_the_transparency_panel_on_its_row() {
         let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
         let item = texts.iter().find(|(t, _)| t == "Opacity:").expect("the stroke's Opacity row").1;
         click_mod(&ctx, &mut app, item.center(), m);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), Some(1)), "{m:?}");
-        app.ui.open_panel = None;
+        assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), Some(1)), "{m:?}");
+        app.ui.transient_panel = None;
         let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
         let object = texts.iter().rev().find(|(t, _)| t == "Opacity:").expect("the object's Opacity row").1;
         click_mod(&ctx, &mut app, object.center(), m);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), None), "{m:?}");
+        assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), None), "{m:?}");
     }
     let mut app = app_with_rect();
     let ctx = drop_ctx();
@@ -1057,8 +1086,10 @@ fn lit_texts(ctx: &egui::Context, app: &mut VectorcraftApp) -> Vec<String> {
     for c in &out.shapes {
         collect(&c.shape, lit, &mut rows, &mut texts);
     }
-    // (A swatch's out-of-gamut sign aside.)
-    texts.into_iter().filter(|(t, r)| t != "⚠" && rows.iter().any(|row| row.contains(r.center()))).map(|(t, _)| t).collect()
+    // (A swatch's out-of-gamut sign and a row's popup aside.)
+    let popup = ctx.memory(|m| m.area_rect(egui::Id::unique("ap-row-popup")));
+    let shown = |r: &egui::Rect| rows.iter().any(|row| row.contains(r.center())) && !popup.is_some_and(|p| p.contains(r.center()));
+    texts.into_iter().filter(|(t, r)| t.trim_end_matches('\u{fe0f}') != "⚠" && shown(r)).map(|(t, _)| t).collect()
 }
 
 /// A fill/stroke's "Opacity:" highlights its own Opacity row, not the fill/stroke, whatever modifiers
@@ -1072,13 +1103,13 @@ fn an_opacity_row_highlights_itself() {
         super::set_pstate(&ctx, "ap-open-1", true);
         let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
         click_mod(&ctx, &mut app, text_rect(&texts, "Opacity:").center(), m);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), Some(1)), "{m:?}");
+        assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), Some(1)), "{m:?}");
         assert_eq!(lit_texts(&ctx, &mut app), ["Opacity:", "Default"], "{m:?}: the stroke's Opacity row only");
-        app.ui.open_panel = None;
+        app.ui.transient_panel = None;
         let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
         let object = texts.iter().rev().find(|(t, _)| t == "Opacity:").unwrap().1;
         click_mod(&ctx, &mut app, object.center(), m);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), None), "{m:?}");
+        assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (Some("transparency"), None), "{m:?}");
         assert_eq!(lit_texts(&ctx, &mut app), ["Opacity:", "Default"], "{m:?}: the object's Opacity row");
     }
     // The empty space: highlights, opens nothing.
@@ -1088,12 +1119,12 @@ fn an_opacity_row_highlights_itself() {
     let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
     let stroke_opacity = text_rect(&texts, "Default").right_center() + egui::vec2(60.0, 0.0);
     click(&ctx, &mut app, stroke_opacity, appearance::show);
-    assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (None, Some(1)));
+    assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (None, Some(1)));
     assert_eq!(lit_texts(&ctx, &mut app), ["Opacity:", "Default"]);
     let texts = frame_events(&ctx, &mut app, vec![], appearance::show);
     let object = texts.iter().rev().find(|(t, _)| t == "Default").unwrap().1.right_center() + egui::vec2(60.0, 0.0);
     click(&ctx, &mut app, object, appearance::show);
-    assert_eq!((app.ui.open_panel.as_deref(), app.session.appearance_item()), (None, None));
+    assert_eq!((app.ui.transient_panel.as_deref(), app.session.appearance_item()), (None, None));
     assert_eq!(lit_texts(&ctx, &mut app), ["Opacity:", "Default"]);
 }
 
@@ -1132,15 +1163,14 @@ fn flyout_ctx() -> egui::Context {
     ctx
 }
 
-/// The frame of a panel area with the dock's flyout beside it, as the app draws them.
+/// The frame of the Appearance panel, 300 points wide at the window's left edge, with a row's popup
+/// beside it, as the app draws them.
 fn panel_and_flyout(app: &mut VectorcraftApp, ui: &mut egui::Ui) {
     ui.allocate_ui(egui::vec2(300.0, 500.0), |ui| appearance::show(app, ui));
-    crate::dock::floating_panel(app, ui.ctx());
 }
 
 /// A panel a row's link opens closes on a press outside it (in the Appearance panel, on Delete
 /// Selected Item…), with Auto-Collapse Iconic Panels off; its first text field takes the keyboard.
-/// One opened from a dock icon stays as before.
 #[test]
 fn panels_a_row_opens_close_when_they_lose_focus() {
     let links = [("Stroke:", 0, "stroke"), ("Fill:", 0, "color"), ("Opacity:", 0, "transparency"), ("Opacity:", 1, "transparency")];
@@ -1154,11 +1184,11 @@ fn panels_a_row_opens_close_when_they_lose_focus() {
         for _ in 0..3 {
             app_frame(&ctx, &mut app, vec![], panel_and_flyout);
         }
-        assert_eq!(app.ui.open_panel.as_deref(), Some(panel), "{label}");
+        assert_eq!(app.ui.transient_panel.as_deref(), Some(panel), "{label}");
         assert!(ctx.memory(|m| m.focused()).is_some(), "{label}: a field of the {panel} panel has the keyboard");
         let object_row = egui::pos2(150.0, 15.0);
         app_click(&ctx, &mut app, object_row, panel_and_flyout);
-        assert_eq!(app.ui.open_panel, None, "{label}: a press in the Appearance panel closes it");
+        assert_eq!(app.ui.transient_panel, None, "{label}: a press in the Appearance panel closes it");
     }
     // Delete Selected Item closes the Stroke panel as it removes the stroke.
     let mut app = app_with_rect();
@@ -1167,38 +1197,45 @@ fn panels_a_row_opens_close_when_they_lose_focus() {
     app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
     let delete = panel_button_in(&ctx, &mut app, "Delete Selected Item", panel_and_flyout);
     app_click(&ctx, &mut app, delete, panel_and_flyout);
-    assert_eq!((app.ui.open_panel.as_deref(), stack_items(&app).len()), (None, 1));
-    // From a dock icon: stays, and takes no focus.
+    assert_eq!((app.ui.transient_panel.as_deref(), stack_items(&app).len()), (None, 1));
+}
+
+/// A row's popup opens beside the Appearance panel, level with the row whose link opened it: on
+/// the right here, where the panel leaves no room on its left. Escape puts it away.
+#[test]
+fn a_row_popup_opens_beside_the_panel_at_its_row() {
     let mut app = app_with_rect();
     let ctx = flyout_ctx();
-    app.ui.open_panel = Some("stroke".into());
+    let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
+    let link = text_rect(&texts, "Stroke:");
+    app_click(&ctx, &mut app, link.center(), panel_and_flyout);
     for _ in 0..3 {
         app_frame(&ctx, &mut app, vec![], panel_and_flyout);
     }
-    assert!(ctx.memory(|m| m.focused()).is_none());
-    app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
-    assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"));
+    let popup = ctx.memory(|m| m.area_rect(egui::Id::unique("ap-row-popup"))).expect("the popup shows");
+    assert!(popup.left() >= 300.0, "right of the panel: {popup:?}");
+    assert!((popup.top() - link.center().y).abs() < 30.0, "level with its row: {popup:?} {link:?}");
+    app_frame(
+        &ctx,
+        &mut app,
+        vec![egui::Event::Key { key: egui::Key::Escape, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE }],
+        panel_and_flyout,
+    );
+    assert_eq!(app.ui.transient_panel, None, "Escape puts it away");
 }
 
-/// A row's link pops its panel out even when the panel floats as a tab of a group; a press outside
-/// still closes it.
+/// A link to a panel that shows already (floating in front of its window) opens no popup: the
+/// panel is in sight as it is.
 #[test]
-fn a_row_link_pops_out_a_panel_that_floats_in_a_group() {
-    for (label, panel) in [("Fill:", "color"), ("Stroke:", "stroke"), ("Opacity:", "transparency")] {
-        let mut app = app_with_rect();
-        app.run("window.panel.float", json!({"panel": panel})).unwrap();
-        assert!(crate::floating::group_of(&app.ui, panel).is_some(), "{label}");
-        let ctx = flyout_ctx();
-        let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
-        app_click(&ctx, &mut app, text_rect(&texts, label).center(), panel_and_flyout);
-        for _ in 0..3 {
-            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
-        }
-        assert_eq!(app.ui.open_panel.as_deref(), Some(panel), "{label}");
-        assert!(ctx.memory(|m| m.area_rect(egui::Id::new("icon-panel"))).is_some(), "{label}: the flyout shows");
-        app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
-        assert_eq!(app.ui.open_panel, None, "{label}: a press in the Appearance panel closes it");
-    }
+fn a_row_link_to_a_panel_in_sight_opens_no_popup() {
+    let mut app = app_with_rect();
+    app.run("window.panel.float", json!({"panel": "stroke"})).unwrap();
+    assert!(crate::panel_docking::showing(&app.ui, "stroke"));
+    let ctx = flyout_ctx();
+    let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
+    app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
+    app_frame(&ctx, &mut app, vec![], panel_and_flyout);
+    assert_eq!(app.ui.transient_panel, None);
 }
 
 /// On a type object "Characters" is a link ("Click to edit") to the Character panel, which closes
@@ -1215,9 +1252,9 @@ fn characters_opens_the_character_panel() {
     let tip = tooltip_at(&ctx, &mut app, characters);
     assert!(tip.contains(&"Click to edit".to_string()), "{tip:?}");
     app_click(&ctx, &mut app, characters, panel_and_flyout);
-    assert_eq!(app.ui.open_panel.as_deref(), Some("character"));
+    assert_eq!(app.ui.transient_panel.as_deref(), Some("character"));
     app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
-    assert_eq!(app.ui.open_panel, None);
+    assert_eq!(app.ui.transient_panel, None);
 }
 
 /// The point of the control named `label` (by its accessibility node) in an [`app_frame`] of `f`
@@ -1254,12 +1291,16 @@ fn with_nothing_selected_the_swatches_set_up_new_art() {
         let item = ap.items.iter().rev().find(|it| it.is_fill() == fill).unwrap();
         assert_eq!(item.paint(), &pick.paint, "{label}: the pick paints new art");
         click_mod(&ctx, &mut app, chip, egui::Modifiers::SHIFT);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.fill_active), (Some("color"), fill), "{label}: Shift-click");
-        app.ui.open_panel = None;
+        assert_eq!((app.ui.transient_panel.as_deref(), app.session.fill_active), (Some("color"), fill), "{label}: Shift-click");
+        app.ui.transient_panel = None;
         run(&mut app, "paint.toggleActive", json!({"fill": !fill}));
         let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
         app_click(&ctx, &mut app, text_rect(&texts, label).center(), panel_and_flyout);
-        assert_eq!((app.ui.open_panel.as_deref(), app.session.fill_active), (Some(if fill { "color" } else { "stroke" }), fill), "{label}: its link");
+        assert_eq!(
+            (app.ui.transient_panel.as_deref(), app.session.fill_active),
+            (Some(if fill { "color" } else { "stroke" }), fill),
+            "{label}: its link"
+        );
     }
 }
 
@@ -1340,34 +1381,6 @@ fn stroke_weights_step_by_quarters_below_one() {
     assert!((weight(&app) - 0.75).abs() < 1e-9, "↓: {}", weight(&app));
 }
 
-/// A panel a row opened and that closed again is no popup any more: opened later from its dock
-/// icon, it stays on a press outside it (Auto-Collapse Iconic Panels off), however the popup closed.
-#[test]
-fn a_closed_row_popup_reopened_from_its_icon_is_no_popup() {
-    for close_by_icon in [false, true] {
-        let mut app = app_with_rect();
-        let ctx = flyout_ctx();
-        let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
-        app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
-        assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"));
-        if close_by_icon {
-            // Its icon (or its ») puts it away.
-            app.ui.open_panel = None;
-            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
-        } else {
-            app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
-            assert_eq!(app.ui.open_panel, None, "a press outside closes the row's popup");
-        }
-        // Opened from its dock icon.
-        app.ui.open_panel = Some("stroke".into());
-        for _ in 0..3 {
-            app_frame(&ctx, &mut app, vec![], panel_and_flyout);
-        }
-        app_click(&ctx, &mut app, egui::pos2(150.0, 15.0), panel_and_flyout);
-        assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"), "closed by its icon: {close_by_icon}");
-    }
-}
-
 /// Dragging a highlighted effect onto Delete removes every highlighted effect, the active one too:
 /// nothing is left active then, so the effect that moved up into the active one's place is not
 /// taken for it (Delete Selected Item then removes nothing).
@@ -1409,25 +1422,6 @@ fn a_drop_on_delete_above_the_active_effect_keeps_the_highlight_on_its_rows() {
     let delete = panel_button(&ctx, &mut app, "Delete Selected Item");
     click(&ctx, &mut app, delete, appearance::show);
     assert!(object_effects(&app).is_empty(), "both highlighted effects removed: {:?}", object_effects(&app));
-}
-
-/// A row's link to a panel that floats behind another tab of a group pops that panel out and leaves
-/// the group on the tab it showed.
-#[test]
-fn a_row_link_leaves_a_floating_group_on_its_tab() {
-    let mut app = app_with_rect();
-    crate::floating::float(&mut app.ui, &["color", "stroke"], "color", egui::pos2(400.0, 100.0));
-    let shown = |app: &VectorcraftApp| {
-        let g = &app.ui.floating_panels[crate::floating::group_of(&app.ui, "stroke").unwrap()];
-        g.panels[g.active].clone()
-    };
-    assert_eq!(shown(&app), "color");
-    let ctx = flyout_ctx();
-    let texts = frame_events(&ctx, &mut app, vec![], panel_and_flyout);
-    app_click(&ctx, &mut app, text_rect(&texts, "Stroke:").center(), panel_and_flyout);
-    app_frame(&ctx, &mut app, vec![], panel_and_flyout);
-    assert_eq!(app.ui.open_panel.as_deref(), Some("stroke"), "the link pops the Stroke panel out");
-    assert_eq!(shown(&app), "color", "the group still shows Color");
 }
 
 /// Whether Duplicate Selected Item and Delete Selected Item are enabled in a frame of the panel
