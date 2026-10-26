@@ -85,6 +85,11 @@ pub(crate) fn count_shapes(shapes: &[TdShape]) -> usize {
         .sum()
 }
 
+/// Reads `bytes` as a CorelDRAW document and converts it into a VectorCraft [`Document`].
+///
+/// `title` names the document, `info` carries the version and container already detected, and `opts`
+/// chooses the scale and how layers and type are handled. Everything the conversion can't represent
+/// comes back as a warning rather than being dropped silently.
 pub(crate) fn import(bytes: &[u8], title: &str, info: CdrInfo, opts: &ImportOptions) -> Result<Imported> {
     let scale = if opts.scale.is_finite() && opts.scale > 0.0 { opts.scale.clamp(1e-3, 1e3) } else { 1.0 };
     let (td, report) = parse(bytes)?;
@@ -200,6 +205,7 @@ struct Notes {
 }
 
 impl Notes {
+    /// Records `w`, ignoring a repeat and stopping at 200 messages.
     fn warn(&mut self, w: impl Into<String>) {
         let w = w.into();
         if !self.list.contains(&w) && self.list.len() < 200 {
@@ -220,15 +226,18 @@ struct Reader<'a> {
     objects: usize,
 }
 
+/// Whether every coefficient of `a` is finite: a damaged file can hold NaN or infinity.
 fn finite_affine(a: Affine) -> bool {
     a.as_coeffs().iter().all(|v| v.is_finite())
 }
 
 impl Reader<'_> {
+    /// The next free node id in the document being built.
     fn id(&mut self) -> NodeId {
         self.doc.alloc_id()
     }
 
+    /// A layer node named `name` holding `children`, coloured from the preset palette in turn.
     fn new_layer(&mut self, name: &str, children: Vec<Arc<Node>>) -> Node {
         let id = self.id();
         let mut n = Node::layer(id, name, LayerColor::Preset(self.layers % 9));
@@ -239,6 +248,8 @@ impl Reader<'_> {
         n
     }
 
+    /// Converts `l` into a document layer under the transform `m`, keeping its name (behind `prefix`),
+    /// visibility, lock and print setting.
     fn layer(&mut self, l: &TdLayer, m: Affine, prefix: Option<&str>) {
         let children: Vec<Arc<Node>> = l.shapes.iter().filter_map(|s| self.shape(s, m, 0)).map(Arc::new).collect();
         let name = format!("{}{}", prefix.unwrap_or(""), if l.name.trim().is_empty() { "Layer" } else { l.name.trim() });
@@ -393,6 +404,8 @@ impl Reader<'_> {
         Some(out)
     }
 
+    /// Warns about everything `s` carries that the import can't represent as such: drop shadows, live
+    /// effects, opacity masks and bitmap effects.
     fn note_losses(&mut self, s: &TdShape) {
         if s.shadow.is_some() {
             self.notes.warn("drop shadows were not imported");
@@ -413,6 +426,8 @@ impl Reader<'_> {
         }
     }
 
+    /// The appearance of `s`: its fills and strokes as appearance items, a stroke marked as sitting
+    /// behind the fill placed under it.
     fn appearance(&mut self, s: &TdShape, bounds: Rect, xf: Affine) -> Appearance {
         let mut items = Vec::new();
         let mut above = Vec::new();
@@ -435,6 +450,10 @@ impl Reader<'_> {
         Appearance { items, ..Appearance::default() }
     }
 
+    /// Converts a file colour into a document colour.
+    ///
+    /// Non-finite components clamp to zero, a spot colour becomes its tint in CMYK, and the registration
+    /// colour becomes CMYK 100/100/100/100 with a warning.
     fn color(&mut self, c: TdColor) -> Color {
         let f = |v: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.0 };
         match c {
@@ -520,6 +539,10 @@ impl Reader<'_> {
         }
     }
 
+    /// Converts a file stroke into a stroke layer.
+    ///
+    /// The width scales with the object when the file marks it so, and falls back to a hairline when it
+    /// isn't a usable number.
     fn stroke(&mut self, st: &Stroke, bounds: Rect, xf: Affine) -> Option<StrokeLayer> {
         let paint = match st.fill.as_deref() {
             Some(f) => self.fill_paint(f, bounds).map(|(p, _)| p),
@@ -650,6 +673,9 @@ impl Reader<'_> {
         Some(obj)
     }
 
+    /// An image node for the embedded PNG `png`, placed in `rect` under `xf`.
+    ///
+    /// Returns `None` with a warning when the image can't be read or is larger than the side limit.
     fn bitmap(&mut self, rect: Rect, w: u32, h: u32, png: &[u8], xf: Affine) -> Option<Node> {
         let ok = (|| {
             let mut reader = image::ImageReader::new(std::io::Cursor::new(png)).with_guessed_format().ok()?;
@@ -679,6 +705,7 @@ impl Reader<'_> {
     }
 }
 
+/// Whether every point of `e` has finite coordinates.
 fn el_finite(e: &PathEl) -> bool {
     let p = |q: &Point| q.x.is_finite() && q.y.is_finite();
     match e {

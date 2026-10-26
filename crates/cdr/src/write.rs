@@ -62,6 +62,11 @@ pub struct Exported {
     pub objects: usize,
 }
 
+/// Writes `doc` as a CorelDRAW file of the version named in `opts`.
+///
+/// Fails when the version is outside the writable range or the document has no artboard (each
+/// artboard becomes a page). Effects are baked first, and everything the format can't hold comes back
+/// as a warning beside the bytes.
 pub(crate) fn export(doc: &Document, opts: &ExportOptions) -> Result<Exported> {
     let version = opts.version;
     if !(OLDEST_EXPORT_VERSION..=NEWEST_EXPORT_VERSION).contains(&version) {
@@ -142,6 +147,7 @@ fn validate_written(bytes: &[u8], version: u16, td: &TdDocument) -> std::result:
     ))
 }
 
+/// Whether `doc` holds any text object.
 fn has_text(doc: &Document) -> bool {
     let mut any = false;
     doc.walk(|n| any |= matches!(n.kind, NodeKind::Text(_)));
@@ -157,15 +163,18 @@ struct Writer<'a> {
     in_clip: u32,
 }
 
+/// `v` in document points as file millimetres.
 fn mm(v: f64) -> f64 {
     v / PT_PER_MM
 }
 
+/// Whether every edge of `r` is finite.
 fn finite(r: Rect) -> bool {
     [r.x0, r.y0, r.x1, r.y1].iter().all(|v| v.is_finite())
 }
 
 impl Writer<'_> {
+    /// Records `w`, ignoring a repeat.
     fn warn(&mut self, w: impl Into<String>) {
         let w = w.into();
         if !self.notes.contains(&w) {
@@ -173,11 +182,16 @@ impl Writer<'_> {
         }
     }
 
+    /// A new shape of `kind`, with the next free shape id.
     fn new_shape(&mut self, kind: ShapeKind) -> TdShape {
         let id = self.td.ids_mut().shape();
         TdShape::new(id, kind)
     }
 
+    /// Builds the file document: one page per artboard, each with its own transform into page
+    /// millimetres (Y up, origin at the bottom left).
+    ///
+    /// Fails when an artboard has a non-finite or empty size.
     fn document(&mut self) -> Result<TdDocument> {
         let doc = self.doc;
         let boards: Vec<Rect> = doc.artboards.iter().map(|a| a.rect.abs()).collect();
@@ -268,6 +282,8 @@ impl Writer<'_> {
             .map_or(0, |(i, _)| i)
     }
 
+    /// Warns about what `n` carries that the format can't hold: blending modes, opacity masks and raster
+    /// effects.
     fn note_losses(&mut self, n: &Node) {
         if n.blend != BlendMode::Normal {
             self.warn("blending modes don't exist in the format and were written as Normal");
@@ -372,6 +388,7 @@ impl Writer<'_> {
         out
     }
 
+    /// `kids` as one shape: nothing when empty, the shape itself when alone, a group otherwise.
     fn group(&mut self, kids: Vec<TdShape>) -> Vec<TdShape> {
         match kids.len() {
             0 => vec![],
@@ -380,6 +397,11 @@ impl Writer<'_> {
         }
     }
 
+    /// Writes `children` under the transform `m`, grouping the result.
+    ///
+    /// When `clip` is set the first child clips the rest: the format's PowerClip isn't written around
+    /// vectors, so the clip is applied to the geometry as a boolean intersection, while clipped bitmaps
+    /// get the format's own crop path.
     fn container(&mut self, children: &[Arc<Node>], clip: bool, m: Affine, alpha: f32, depth: usize) -> Vec<TdShape> {
         let Some((first, rest)) = children.split_first().filter(|_| clip) else {
             let kids: Vec<TdShape> = children.iter().flat_map(|c| self.node(c, m, alpha, depth + 1)).collect();
@@ -511,6 +533,8 @@ impl Writer<'_> {
         }
     }
 
+    /// Writes the path `bp` of `n` under `m` as a shape, returning `None` with a warning when its
+    /// coordinates aren't all finite.
     fn path(&mut self, n: &Node, bp: &BezPath, m: Affine, alpha: f32) -> Option<TdShape> {
         if bp.elements().is_empty() {
             return None;
@@ -571,6 +595,7 @@ impl Writer<'_> {
         (fill.unwrap_or(Fill::None), stroke, (alpha * fill_opacity).clamp(0.0, 1.0))
     }
 
+    /// Converts a document colour into a file colour; Lab is written as RGB with a warning.
     fn color(&mut self, c: &Color) -> TdColor {
         match *c {
             Color::Rgb { r, g, b } => TdColor::Rgb { r, g, b },
@@ -584,6 +609,9 @@ impl Writer<'_> {
         }
     }
 
+    /// Converts a paint into a file fill.
+    ///
+    /// The format holds no gradient stop opacity and no midpoints, so both are dropped with a warning.
     fn fill(&mut self, p: &Paint, bounds: Rect) -> Fill {
         match p {
             Paint::None => Fill::None,
@@ -639,6 +667,9 @@ impl Writer<'_> {
         }
     }
 
+    /// Converts a stroke layer into a file stroke, or `None` when it paints nothing.
+    ///
+    /// A gradient or pattern stroke is written in a solid colour, with a warning.
     fn stroke(&mut self, st: &vectorcraft_doc::StrokeLayer, bounds: Rect) -> Option<Stroke> {
         let color = match &st.paint {
             Paint::None => return None,
@@ -689,6 +720,10 @@ impl Writer<'_> {
         Some(s)
     }
 
+    /// Writes the text object `t` under `m`, or `None` when its matrix or frame isn't usable.
+    ///
+    /// The type matrix's uniform scale goes into the type size, because CorelDRAW scales a paragraph
+    /// frame with its object but not its letters.
     fn text(&mut self, t: &TextObject, m: Affine, alpha: f32) -> Option<TdShape> {
         // The type matrix's uniform scale goes into the type size (CorelDRAW scales a paragraph
         // frame with its object, but not its letters).
@@ -800,6 +835,8 @@ impl Writer<'_> {
         Some(out)
     }
 
+    /// Writes the image object `im` under `m`, or `None` with a warning when its pixels aren't available
+    /// or can't be decoded within the side limit.
     fn image(&mut self, im: &ImageObject, m: Affine, alpha: f32) -> Option<TdShape> {
         let Some(blob) = self.doc.images.get(&im.key).filter(|b| !b.bytes.is_empty()) else {
             self.warn("linked images whose pixels aren't available were left out");
@@ -844,6 +881,7 @@ impl Writer<'_> {
     }
 }
 
+/// The file text alignment matching the document justification `j`.
 fn justify(j: Justify) -> TextAlign {
     match j {
         Justify::Center | Justify::JustifyCenter => TextAlign::Center,
@@ -853,6 +891,7 @@ fn justify(j: Justify) -> TextAlign {
     }
 }
 
+/// Whether every point of `e` has finite coordinates.
 fn el_finite(e: &PathEl) -> bool {
     let p = |q: &Point| q.x.is_finite() && q.y.is_finite();
     match e {

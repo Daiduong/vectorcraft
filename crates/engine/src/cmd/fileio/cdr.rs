@@ -19,6 +19,7 @@ use super::{Encoded, FormatOption, err, source};
 const C: &str = "document.export";
 const INFO: &str = "document.cdrInfo";
 
+/// The CorelDRAW commands: `document.cdrInfo` and `document.cdrCapabilities`.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
@@ -89,6 +90,9 @@ impl Default for CdrImport {
     }
 }
 
+/// Reads the `cdr` import options of `cmd` from `p`, or the defaults when it is absent or null.
+///
+/// Fails when `p` isn't an object or the scale isn't a positive number up to 1000.
 pub(super) fn options(cmd: &str, p: Option<&Value>) -> Result<CdrImport> {
     let Some(p) = p.filter(|v| !v.is_null()) else { return Ok(CdrImport::default()) };
     if !p.is_object() {
@@ -191,6 +195,8 @@ pub(super) fn encode(doc: &Document, p: &Value) -> Result<Encoded> {
     Ok(enc)
 }
 
+/// Answers the signature, version, container and readability of a CorelDRAW file, reading it through
+/// without opening it as a document.
 fn cdr_info(_: &mut Session, p: &Value) -> Result<Value> {
     let bytes = source(p, INFO)?.bytes;
     let info = vectorcraft_cdr::detect_version(&bytes).map_err(err)?;
@@ -212,6 +218,7 @@ fn cdr_info(_: &mut Session, p: &Value) -> Result<Value> {
     }))
 }
 
+/// Answers the compatibility matrix and the versions the export can write.
 fn cdr_capabilities(_: &mut Session, _: &Value) -> Result<Value> {
     Ok(vectorcraft_cdr::matrix::to_json())
 }

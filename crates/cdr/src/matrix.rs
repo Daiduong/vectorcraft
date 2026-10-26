@@ -20,6 +20,7 @@ pub enum Level {
 }
 
 impl Level {
+    /// The level's name, as shown to the user.
     pub fn label(self) -> &'static str {
         match self {
             Self::Full => "Fully supported",

@@ -123,6 +123,7 @@ pub enum Container {
 }
 
 impl Container {
+    /// The container's name, as shown to the user.
     pub fn label(self) -> &'static str {
         match self {
             Self::Riff => "RIFF",
@@ -192,6 +193,7 @@ pub fn export_versions() -> Vec<ExportVersion> {
         .collect()
 }
 
+/// The container a file of format version `v` uses.
 fn container_of(v: u16) -> Container {
     match v {
         ..=13 => Container::Riff,
@@ -268,6 +270,7 @@ pub struct Validation {
 }
 
 impl Validation {
+    /// Whether the file was read through with no error.
     pub fn ok(&self) -> bool {
         self.readable && self.error.is_none()
     }

@@ -116,6 +116,9 @@ fn options(app: &VectorcraftApp, d: &Dialog) -> Value {
     o
 }
 
+/// Opens or places the drawing with the options chosen, remembering them for the next time.
+///
+/// Fails when the file couldn't be read or is no longer loaded.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     if !d.bool("readable") {
         return Err(d.str("error"));
@@ -151,6 +154,7 @@ fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
     }
 }
 
+/// Draws the dialog: the file's product, format version and container, then the import options.
 fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     widgets::subheader(ui, tl!("File"));
     widgets::dim_label(ui, &format!("{} · {} {} · {}", d.str("product"), tl!("format version"), d.f64("version", 0.0), d.str("container")));

@@ -29,6 +29,7 @@ pub(super) const SPEC: DialogSpec = DialogSpec {
 /// Fields that belong to one export only.
 const PER_EXPORT: [&str; 2] = ["format", "path"];
 
+/// The export options a fresh dialog starts with.
 fn defaults() -> Map<String, Value> {
     let mut m = Map::new();
     m.insert("version".into(), json!(vectorcraft_cdr::DEFAULT_EXPORT_VERSION.to_string()));
@@ -69,6 +70,7 @@ pub fn export_command(app: &mut VectorcraftApp, p: &Value) -> Result<Value, Stri
     Ok(Value::Null)
 }
 
+/// Draws the dialog: the target version, then the type, rasterizing and validation options.
 fn body(_app: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
     let versions: Vec<(String, String)> = vectorcraft_cdr::export_versions()
         .into_iter()
