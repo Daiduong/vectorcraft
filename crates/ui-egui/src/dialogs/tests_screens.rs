@@ -991,6 +991,23 @@ fn a_preset_saved_with_full_document_chooses_it_again() {
     assert_eq!(field(&app, "select"), "full");
 }
 
+/// A preset whose `folders` is empty uses its `subfolders`, as the export command does, and
+/// without either it keeps the dialog's Folders.
+#[test]
+fn a_preset_with_empty_folders_uses_its_subfolders() {
+    let (mut app, _) = app(2, false);
+    open(&mut app);
+    set(&mut app, "folders", json!("format"));
+    set(&mut app, "subfolders", json!(true));
+    let apply = |app: &mut VectorcraftApp, settings: Value| {
+        export_for_screens::apply_preset(app.ui.dialog.as_mut().unwrap(), &json!({"name": "Empty", "settings": settings}));
+    };
+    apply(&mut app, json!({"folders": ""}));
+    assert_eq!((field(&app, "folders"), field(&app, "subfolders")), (json!("format"), json!(true)));
+    apply(&mut app, json!({"folders": "", "subfolders": false}));
+    assert_eq!((field(&app, "folders"), field(&app, "subfolders")), (json!("none"), json!(false)));
+}
+
 /// Export Preset… writes the current preset to a file and Import Preset… adds the presets of a
 /// file to the dropdown, as does opening the file while the dialog is open (the web's Import).
 #[cfg(not(target_arch = "wasm32"))]

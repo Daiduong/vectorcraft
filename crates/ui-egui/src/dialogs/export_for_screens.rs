@@ -844,7 +844,7 @@ pub(super) fn apply_preset(d: &mut Dialog, preset: &Value) {
             }
         }
     }
-    let folders = st["folders"].as_str().or_else(|| st["subfolders"].as_bool().map(|b| if b { "rows" } else { "none" }));
+    let folders = st["folders"].as_str().filter(|f| !f.is_empty()).or_else(|| st["subfolders"].as_bool().map(|b| if b { "rows" } else { "none" }));
     if let Some(f) = folders {
         set_folders(d, f);
     }
