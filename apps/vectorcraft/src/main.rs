@@ -101,6 +101,11 @@ fn native_input_hook(_: &VectorcraftApp) -> Option<vectorcraft_ui_egui::NativeIn
 }
 
 impl eframe::App for App {
+    // Preferences have their own store; eframe persists only the native window.
+    fn persist_egui_memory(&self) -> bool {
+        false
+    }
+
     // Each frame runs unconfined: it is the person at the keyboard's. The app confines what the
     // control channel asks for, and the frames carrying input it injected, to the automation roots
     // (`VectorcraftApp::with_automation_roots`), which are in force elsewhere in the process.
@@ -949,7 +954,9 @@ fn main() -> std::process::ExitCode {
     #[cfg(feature = "wgpu")]
     let crash = left_out.crash.clone();
     let custom_titlebar = custom_titlebar(saved.as_ref());
-    let options = native_options(custom_titlebar);
+    let mut options = native_options(custom_titlebar);
+    options.persist_window = prefs_enabled();
+    options.viewport = window::start_viewport(options.viewport, saved_window);
     // winit picks Wayland whenever `WAYLAND_DISPLAY` is set; Preferences › Performance › Linux
     // Display Server › X11 opens the window through XWayland instead, where file drops work (#1151),
     // and X11 (XWayland) When a Pen Is Attached does so when a pen is attached, where the pen draws (#2028).
@@ -1056,15 +1063,18 @@ fn main() -> std::process::ExitCode {
                 // which takes over from the copy the preferences file used to hold.
                 prefs_dir::attach_pdf_preset_store(&mut app.session);
                 // Fit the window to its monitor, or put it back where it was (still hidden).
+                let has_native_state = cc.storage.is_some_and(|s| s.get_string("window").is_some());
                 let winit_window = cc.winit_window().cloned();
                 if let Some(w) = &winit_window {
-                    let g = window::restore(w, saved_window);
-                    app.ui.window = Some(g);
+                    // Once eframe has native state, legacy preferences must not overwrite it.
+                    if !has_native_state {
+                        app.ui.window = Some(window::restore(w, saved_window));
+                    }
                     #[cfg(windows)]
                     set_taskbar_icon(w);
                 }
                 // Linux may not map the window before the first frames, so a saved maximize is retried then (#3635).
-                let pending_maximize = cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);
+                let pending_maximize = !has_native_state && cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);
                 // User Defined swatch, graphic style and symbol libraries live next to the preferences.
                 let swatches = prefs_path().and_then(|p| Some(p.parent()?.join("Swatches").to_string_lossy().to_string()));
                 app.session.swatch_libraries.set_user_dir(swatches);

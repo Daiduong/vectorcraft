@@ -14,6 +14,17 @@ pub const MIN_SIZE: [f32; 2] = [800.0, 500.0];
 /// say how much of the screen they take): a monitor with less room opens it maximized.
 const SCREEN_ROOM: [f32; 2] = [64.0, 128.0];
 
+/// Seed the native builder from legacy preferences before eframe creates the window. Its
+/// persisted native state takes precedence on later launches.
+pub fn start_viewport(builder: egui::ViewportBuilder, saved: Option<WindowGeometry>) -> egui::ViewportBuilder {
+    let Some(saved) = saved else { return builder };
+    let size: [f32; 2] = std::array::from_fn(|i| {
+        let side = saved.size[i];
+        if side.is_finite() && side > 0.0 { side.clamp(MIN_SIZE[i], 16384.0) } else { DEFAULT_SIZE[i] }
+    });
+    builder.with_inner_size(size).with_maximized(saved.maximized)
+}
+
 /// A monitor: its top-left corner and size in physical pixels, and its scale factor.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Monitor {
@@ -171,6 +182,18 @@ pub fn track(ctx: &egui::Context, geometry: &mut Option<WindowGeometry>, host_ma
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_window_state_seeds_the_native_restore_size_and_maximize_request() {
+        let geometry = WindowGeometry { pos: None, size: [1170.0, 730.0], maximized: true };
+        let builder = start_viewport(egui::ViewportBuilder::default(), Some(geometry));
+        assert_eq!(builder.inner_size, Some(egui::vec2(1170.0, 730.0)));
+        assert_eq!(builder.maximized, Some(true));
+        let corrupt = WindowGeometry { size: [f32::NAN, f32::INFINITY], ..geometry };
+        assert_eq!(start_viewport(egui::ViewportBuilder::default(), Some(corrupt)).inner_size, Some(DEFAULT_SIZE.into()));
+        let tiny = WindowGeometry { size: [1.0, 1.0], ..geometry };
+        assert_eq!(start_viewport(egui::ViewportBuilder::default(), Some(tiny)).inner_size, Some(MIN_SIZE.into()));
+    }
 
     fn monitor(x: i32, y: i32, w: u32, h: u32, scale: f64) -> Monitor {
         Monitor::new(PhysicalPosition::new(x, y), PhysicalSize::new(w, h), scale)
