@@ -189,13 +189,20 @@ pub fn install_module(app: &mut VectorcraftApp, module: Value) -> Result<Value, 
     Ok(r)
 }
 
+/// Where File → Open… starts: the folder of the most recently opened file, else the active
+/// document's (#4122).
+fn open_dialog_folder(app: &VectorcraftApp) -> Option<String> {
+    app.ui.recent_files.iter().find_map(|p| fileio::dialog_folder(p)).or_else(|| suggested(app, "").1)
+}
+
 /// File → Open…
 pub fn open_dialog(app: &mut VectorcraftApp) -> Result<(), String> {
     if let Some(f) = app.services.open_async.as_mut() {
         f();
         return Ok(());
     }
-    let path = pick_open(app, &FilePick { filters: FilePick::filters(fileio::open_filters()), ..Default::default() })?;
+    let path =
+        pick_open(app, &FilePick { filters: FilePick::filters(fileio::open_filters()), folder: open_dialog_folder(app), ..Default::default() })?;
     open_reporting(app, &path).map(|_| ())
 }
 
@@ -699,8 +706,9 @@ fn saved_status(path: &str, r: &Value) -> String {
 
 /// Write a planned save through the services and report it in the status bar.
 /// With Background Save on, the file is encoded and written from a snapshot off the UI thread
-/// ([`background`]): this returns `{path, background: true, status}` at once, and the document
-/// takes the file (and counts as saved, as of the snapshot) once it is written.
+/// ([`background`]): this returns `{path, background: true, status, format, warnings}` at once
+/// (`warnings`: what the format loses, then the save's notes on its params, such as an option the format
+/// doesn't read), and the document takes the file (and counts as saved, as of the snapshot) once it is written.
 fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String> {
     let uid = app.session.active().ok_or("no document")?.uid;
     // Saves of one document finish in order.
@@ -709,6 +717,7 @@ fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String>
     }
     let job = fileio::save_job(&mut app.session, plan).map_err(|e| e.to_string())?;
     let (retargets, target) = (job.plan().retargets(), job.plan().path.clone());
+    let (format, warnings) = (job.plan().format.id, job.known_warnings());
     let label = match &target {
         Some(path) => format!("Saving {}", fileio::file_name(path)),
         None => "Saving".into(),
@@ -742,6 +751,10 @@ fn write_plan(app: &mut VectorcraftApp, plan: SavePlan) -> Result<Value, String>
     let mut r = background::run(app, enabled, label, Some(uid), work, then)?;
     if let Some(path) = target.filter(|_| r.get("path").is_none()) {
         r["path"] = json!(path);
+    }
+    if r.get("background").and_then(Value::as_bool) == Some(true) {
+        r["format"] = json!(format);
+        r["warnings"] = json!(warnings);
     }
     Ok(r)
 }

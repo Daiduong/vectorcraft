@@ -13,6 +13,11 @@ use vectorcraft_geom::{Affine, Point, Rect, Vec2};
 use crate::guides::{DrawSnap, Leave, square};
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey};
 
+/// The largest corner radius the Rounded Rectangle tool draws, points: the range of General ›
+/// Corner Radius, which the tool's radius is (its `prefs.list` spec), so ↑ and a Tool Options
+/// value stop there too.
+pub const MAX_CORNER_RADIUS: f64 = 1296.0;
+
 pub struct ShapeTool {
     id: &'static str,
     start: Option<Point>,
@@ -26,6 +31,11 @@ pub struct ShapeTool {
     pub star_ratio: f64,
     /// The star's inner radius held while Ctrl/Cmd is down in a drag.
     inner: Option<f64>,
+    /// Line Segment Tool Options: the length and angle (degrees) a click's dialog opens with, and
+    /// Fill Line (new lines take the current fill).
+    pub line_length: f64,
+    pub line_angle: f64,
+    pub fill_line: bool,
     snap: DrawSnap,
 }
 
@@ -59,6 +69,9 @@ impl ShapeTool {
             star_ratio: 0.5,
             inner: None,
             snap: DrawSnap::default(),
+            line_length: 100.0,
+            line_angle: 0.0,
+            fill_line: false,
         }
     }
 
@@ -131,7 +144,11 @@ impl ShapeTool {
             }
             "lineSegment" => {
                 let (a, b) = if m.alt { (start - (p - start), p) } else { (start, p) };
-                ("shape.line".into(), json!({ "x1": a.x, "y1": a.y, "x2": b.x, "y2": b.y }))
+                let mut v = json!({ "x1": a.x, "y1": a.y, "x2": b.x, "y2": b.y });
+                if self.fill_line {
+                    v["fill"] = json!(true);
+                }
+                ("shape.line".into(), v)
             }
             _ => {
                 let cmd = if self.id == "ellipse" { "shape.ellipse" } else { "shape.rectangle" };
@@ -267,7 +284,7 @@ impl Tool for ShapeTool {
                 true
             }
             ("roundedRectangle", ToolKey::Up) => {
-                self.corner_radius += 1.0;
+                self.corner_radius = (self.corner_radius + 1.0).min(MAX_CORNER_RADIUS);
                 true
             }
             ("roundedRectangle", ToolKey::Down) => {
@@ -296,15 +313,25 @@ impl Tool for ShapeTool {
                 cx.segment_measure_label(s, self.last)
             } else {
                 // A box's size as drawn (from its centre with Alt, square with Shift).
-                let (w, h) = match self.id {
-                    "polygon" | "star" => ((self.last - s).x.abs(), (self.last - s).y.abs()),
-                    _ => {
-                        // Along the Constrain Angle's axes, as the box is drawn (`command_at`).
-                        let (r, _) = turned_box(s, self.last, self.mods, cx.constrain_angle);
-                        (r.width(), r.height())
+                match self.id {
+                    "star" => {
+                        let outer = (self.last - s).hypot().max(0.01);
+                        // The same ratio `command_at` draws with, so the label matches the preview
+                        // (Ctrl/Cmd's held radius is already in `star_ratio`, clamped; Alt overrides it).
+                        let ratio = if self.mods.alt { straight_ratio(self.points).unwrap_or(self.star_ratio) } else { self.star_ratio };
+                        cx.star_radii_label(outer, outer * ratio)
                     }
-                };
-                cx.size_label(w, h)
+                    _ => {
+                        let (w, h) = match self.id {
+                            "polygon" => ((self.last - s).x.abs(), (self.last - s).y.abs()),
+                            _ => {
+                                let (r, _) = turned_box(s, self.last, self.mods, cx.constrain_angle);
+                                (r.width(), r.height())
+                            }
+                        };
+                        cx.size_label(w, h)
+                    }
+                }
             };
             o.push(Overlay::Measure { p, text });
         }
@@ -314,14 +341,26 @@ impl Tool for ShapeTool {
         Cursor::Crosshair
     }
     fn options(&self) -> Value {
-        json!({ "sides": self.sides, "points": self.points, "cornerRadius": self.corner_radius, "starRatio": self.star_ratio })
+        json!({
+            "sides": self.sides,
+            "points": self.points,
+            "cornerRadius": self.corner_radius,
+            "starRatio": self.star_ratio,
+            "length": self.line_length,
+            "angle": self.line_angle,
+            "fillLine": self.fill_line,
+        })
     }
     fn set_option(&mut self, key: &str, v: &Value) {
+        let finite = v.as_f64().filter(|n| n.is_finite());
         match key {
             "sides" => self.sides = v.as_u64().unwrap_or(6).clamp(3, 1000) as u32,
             "points" => self.points = v.as_u64().unwrap_or(5).clamp(3, 1000) as u32,
-            "cornerRadius" => self.corner_radius = v.as_f64().unwrap_or(12.0).max(0.0),
+            "cornerRadius" => self.corner_radius = finite.unwrap_or(12.0).clamp(0.0, MAX_CORNER_RADIUS),
             "starRatio" => self.star_ratio = v.as_f64().unwrap_or(0.5).clamp(0.01, 1.0),
+            "length" => self.line_length = finite.map_or(self.line_length, |n| n.abs().min(1e6)),
+            "angle" => self.line_angle = finite.map_or(self.line_angle, |n| n.rem_euclid(360.0)),
+            "fillLine" => self.fill_line = v.as_bool().unwrap_or(self.fill_line),
             _ => {}
         }
     }
@@ -370,6 +409,71 @@ mod tests {
         t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 80.0, 50.0));
         let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 90.0, 60.0).with_mods(space));
         assert!(matches!(a.last(), Some(Action::Preview(_, v)) if v["cx"] == 60.0 && v["cy"] == 60.0), "{a:?}");
+    }
+
+    #[test]
+    fn star_drag_measure_label_shows_outer_and_inner_radii() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = ToolContext { measurement_labels: true, smart_guides: false, ..cx(&d, &s, &p) };
+        let mut t = ShapeTool::new("star");
+        t.star_ratio = 0.5;
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 10.0));
+        let want = cx.star_radii_label(40.0, 20.0);
+        let label = t
+            .overlays(&cx)
+            .into_iter()
+            .find_map(|o| match o {
+                Overlay::Measure { text, .. } => Some(text),
+                _ => None,
+            })
+            .unwrap_or_default();
+        assert_eq!(label, want, "{label}");
+    }
+
+    /// The star label shows the radii the preview draws, also with Ctrl/Cmd + Alt and when a
+    /// Ctrl/Cmd drag shrinks the outer radius below the held inner one (the ratio is clamped).
+    #[test]
+    fn star_measure_label_matches_the_preview_with_modifiers_and_shrink() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = ToolContext { measurement_labels: true, smart_guides: false, ..cx(&d, &s, &p) };
+        let label = |t: &ShapeTool| {
+            t.overlays(&cx)
+                .into_iter()
+                .find_map(|o| match o {
+                    Overlay::Measure { text, .. } => Some(text),
+                    _ => None,
+                })
+                .unwrap_or_default()
+        };
+        let radii = |a: &[Action]| match a.last() {
+            Some(Action::Preview(_, v)) => (v["radius1"].as_f64().unwrap(), v["radius2"].as_f64().unwrap()),
+            other => panic!("{other:?}"),
+        };
+        let cmd = Mods { cmd: true, ..Default::default() };
+        let cmd_alt = Mods { cmd: true, alt: true, ..Default::default() };
+        let mut t = ShapeTool::new("star");
+        t.star_ratio = 0.5;
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 10.0));
+        // Ctrl/Cmd holds the 20 inner radius while the outer one grows.
+        let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 70.0, 10.0).with_mods(cmd));
+        let (r1, r2) = radii(&a);
+        assert_eq!(label(&t), cx.star_radii_label(r1, r2));
+        // Ctrl/Cmd + Alt: the preview straightens the shoulders, and so does the label.
+        let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 70.0, 10.0).with_mods(cmd_alt));
+        let (r1, r2) = radii(&a);
+        assert!((r2 - 20.0).abs() > 1e-6, "Alt should override the held radius: {r2}");
+        assert_eq!(label(&t), cx.star_radii_label(r1, r2));
+        // Shrinking below the held inner radius clamps the ratio; the label follows the preview.
+        let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 20.0, 10.0).with_mods(cmd));
+        let (r1, r2) = radii(&a);
+        assert!(r2 <= r1 + 1e-9, "{r1} {r2}");
+        assert_eq!(label(&t), cx.star_radii_label(r1, r2));
     }
 
     /// During a star drag, Ctrl/Cmd keeps the inner radius while the outer one follows the pointer
@@ -498,6 +602,29 @@ mod tests {
         assert!(matches!(&a[0], Action::Preview(_, v) if v["sides"] == 7));
     }
 
+    /// The Rounded Rectangle radius stops at General › Corner Radius's range on both of its input
+    /// paths: a Tool Options value is clamped to it, and ↑ at the top stays there.
+    #[test]
+    fn rounded_rectangle_radius_is_clamped_to_its_range() {
+        let (d, _) = doc_with_rect();
+        let s = Selection::default();
+        let p = paint();
+        let cx = cx(&d, &s, &p);
+        let mut t = ShapeTool::new("roundedRectangle");
+        t.set_option("cornerRadius", &json!(5000));
+        assert_eq!(t.options()["cornerRadius"], json!(MAX_CORNER_RADIUS));
+        t.set_option("cornerRadius", &json!(f64::INFINITY));
+        assert_eq!(t.options()["cornerRadius"], json!(12.0), "a non-finite value is the default");
+        t.set_option("cornerRadius", &json!(-3));
+        assert_eq!(t.options()["cornerRadius"], json!(0.0));
+        t.set_option("cornerRadius", &json!(MAX_CORNER_RADIUS));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 10.0, 10.0));
+        t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 50.0, 40.0));
+        let a = t.key(&cx, ToolKey::Up, Mods::default());
+        assert!(matches!(&a[0], Action::Preview(_, v) if v["radius"] == json!(MAX_CORNER_RADIUS)), "{a:?}");
+        assert_eq!(t.options()["cornerRadius"], json!(MAX_CORNER_RADIUS));
+    }
+
     /// The start and the dragged corner land on another object's anchors (#506), hovering shows
     /// it before the press, and the measurement label gives the size drawn.
     #[test]
@@ -531,5 +658,23 @@ mod tests {
         let from = Point::new(300.0, 300.0);
         let to = Point::new(200.0, 300.0);
         assert!(t.overlays(&cx).iter().any(|o| matches!(o, Overlay::Measure { text, .. } if text == &cx.segment_measure_label(from, to))));
+    }
+
+    /// Line Segment Tool Options: Length and Angle are options (for a click's dialog), and Fill
+    /// Line makes the drag's line take the current fill.
+    #[test]
+    fn line_segment_options_and_fill_line() {
+        let mut t = ShapeTool::new("lineSegment");
+        let (a, b) = (Point::new(0.0, 0.0), Point::new(30.0, 40.0));
+        assert!(t.command(a, b, Mods::default()).1.get("fill").is_none());
+        for (k, v) in [("length", json!(-80.0)), ("angle", json!(-90.0)), ("fillLine", json!(true))] {
+            t.set_option(k, &v);
+        }
+        t.set_option("length", &json!(f64::NAN));
+        assert_eq!(
+            (t.options()["length"].clone(), t.options()["angle"].clone(), t.options()["fillLine"].clone()),
+            (json!(80.0), json!(270.0), json!(true))
+        );
+        assert_eq!(t.command(a, b, Mods::default()).1["fill"], json!(true));
     }
 }

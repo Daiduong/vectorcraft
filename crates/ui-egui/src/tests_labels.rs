@@ -292,14 +292,16 @@ fn effect_menu_keeps_glowing_edges_out_of_the_vector_stylize() {
 }
 
 #[test]
-fn library_submenus_are_disabled_placeholders() {
+fn window_library_submenus_have_no_placeholders() {
     let app = app();
     let entries = menus::menu_entries(&app);
-    for lib in ["Brush Libraries", "Symbol Libraries"] {
-        let items: Vec<_> = entries.iter().filter(|e| e.path == ["Window", lib]).collect();
-        let labels: Vec<&str> = items.iter().map(|e| e.label.as_str()).collect();
-        assert_eq!(labels, ["Built-in Libraries", "User Defined", "Other Library…"], "{lib}");
-        assert!(items.iter().all(|e| !e.enabled && e.command.is_none()), "{lib}");
+    for lib in ["Brush Libraries", "Graphic Style Libraries", "Swatch Libraries", "Symbol Libraries"] {
+        let items: Vec<_> = entries
+            .iter()
+            .filter(|e| e.path.first().map(String::as_str) == Some("Window") && e.path.get(1).map(String::as_str) == Some(lib))
+            .collect();
+        assert!(!items.is_empty(), "{lib}");
+        assert!(items.iter().all(|e| e.command.is_some()), "{lib}: {:?}", items.iter().map(|e| &e.label).collect::<Vec<_>>());
     }
 }
 

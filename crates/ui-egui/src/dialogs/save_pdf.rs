@@ -27,7 +27,8 @@ use crate::{VectorcraftApp, io, widgets};
 
 pub(super) const KIND: &str = "savePdf";
 
-pub(super) const SPEC: DialogSpec = DialogSpec { heading: |_| tl!("Save PDF").into(), body, confirm, ok: Some("Save PDF"), ..DialogSpec::FORM };
+pub(super) const SPEC: DialogSpec =
+    DialogSpec { heading: |_| tl!("Save PDF").into(), body, confirm, ok: Some("Save PDF"), inputs: |_| &["path"], ..DialogSpec::FORM };
 
 /// The dialog kind of the preset editor (New / Edit in Edit → PDF Presets).
 pub(super) const PRESET_KIND: &str = "pdfPreset";
@@ -95,8 +96,20 @@ pub fn open(app: &mut VectorcraftApp, params: &Value) -> Result<Value, String> {
 /// dialog fields. A standard the writer can't produce yet still shows (Save PDF then says so).
 fn settings_fields(app: &VectorcraftApp, params: &Value) -> Result<Map<String, Value>, String> {
     let settings = pdf::resolve("ui.savePdfDialog", params, &app.session.prefs.pdf_presets).map_err(|e| e.to_string())?;
-    match serde_json::to_value(settings).map_err(|e| e.to_string())? {
-        Value::Object(fields) => Ok(fields),
+    match serde_json::to_value(&settings).map_err(|e| e.to_string())? {
+        Value::Object(mut fields) => {
+            // Serialization omits passwords from presets and summaries; the live dialog needs
+            // the validated passwords so confirming it still encrypts the PDF.
+            let security = fields.get_mut("security").and_then(Value::as_object_mut).ok_or("PDF security settings are not an object")?;
+            for (key, password) in
+                [("openPassword", settings.security.open_password), ("permissionsPassword", settings.security.permissions_password)]
+            {
+                if !password.is_empty() {
+                    security.insert(key.into(), json!(password));
+                }
+            }
+            Ok(fields)
+        }
         _ => Err("PDF settings are not an object".into()),
     }
 }
@@ -244,11 +257,13 @@ pub(super) fn row(ui: &mut egui::Ui, label: &str, add: impl FnOnce(&mut egui::Ui
 pub(super) fn row_with(ui: &mut egui::Ui, label: &str, width: f32, add: impl FnOnce(&mut egui::Ui)) {
     let t = Tokens::get(ui.ctx());
     ui.horizontal(|ui| {
-        ui.allocate_ui_with_layout(egui::vec2(width, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            ui.set_min_width(width);
-            ui.label(egui::RichText::new(label).color(t.text));
-        });
-        add(ui);
+        let label_id = ui
+            .allocate_ui_with_layout(egui::vec2(width, 24.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_min_width(width);
+                ui.label(egui::RichText::new(label).color(t.text)).id
+            })
+            .inner;
+        ui.label_inputs_by(label_id, add);
     });
 }
 
@@ -465,7 +480,7 @@ fn general(ui: &mut egui::Ui, d: &mut Dialog, editor: bool) {
     flag(ui, d, "includeNonPrinting", tl!("Include non-printing layers"), true);
     if editor {
         heading(ui, tl!("Description"));
-        if let Some(text) = widgets::text_field(ui, "pdf-preset-description", Some(&d.str("description")), 460.0, 3) {
+        if let Some(text) = widgets::text_field_named(ui, "pdf-preset-description", Some(tl!("Description")), Some(&d.str("description")), 460.0, 3) {
             d.fields.insert("description".into(), json!(text));
         }
         return;
@@ -754,8 +769,8 @@ pub(super) fn option_label(option: &str) -> String {
 /// cached until a field or the document changes.
 fn summary_of(app: &mut VectorcraftApp, ctx: &egui::Context, p: &Value) -> Result<Value, String> {
     let revision = app.session.active().map_or(0, |s| s.revision);
-    let stamp = egui::Id::new((p.to_string(), revision));
-    let key = egui::Id::new("save-pdf-summary");
+    let stamp = egui::Id::unique((p.to_string(), revision));
+    let key = egui::Id::unique("save-pdf-summary");
     if let Some((s, v)) = ctx.data(|m| m.get_temp::<(egui::Id, Result<Value, String>)>(key))
         && s == stamp
     {
@@ -1018,6 +1033,46 @@ mod tests {
         assert_eq!(option_label("bleed.top"), "Marks and Bleeds › Bleed › Top");
         assert_eq!(section_of("bleed.top"), 2);
         assert_eq!(SECTIONS[section_of("standard")], "General");
+    }
+
+    #[test]
+    fn confirming_preserves_passwords_supplied_when_opening_the_dialog() {
+        for (open, owner) in [("open", ""), ("", "owner"), ("open", "owner")] {
+            let (mut app, written, _) = app();
+            app.run(
+                "ui.savePdfDialog",
+                json!({"path": "/tmp/locked.pdf", "security": {"openPassword": open, "permissionsPassword": owner, "printing": "none"}}),
+            )
+            .unwrap();
+            // Drawing the Security and Summary sections must retain the live passwords.
+            for section in ["Security", "Summary"] {
+                set_field(&mut app, "__section", json!(section));
+                frame(&mut app);
+            }
+            let p = params(app.ui.dialog.as_ref().unwrap());
+            let summary = summary_of(&mut app, &egui::Context::default(), &p).unwrap();
+            assert!(!summary.to_string().contains("Password"), "summaries omit passwords");
+            let mut d = app.ui.dialog.clone().unwrap();
+            set(&mut d, SAVE_AS, json!("Protected"));
+            save_preset(&mut app, &mut d).unwrap();
+            let saved = &app.session.prefs.pdf_presets[0].settings.security;
+            assert!(saved.open_password.is_empty() && saved.permissions_password.is_empty(), "presets forget passwords");
+
+            super::super::confirm(&mut app).unwrap();
+            assert!(app.ui.dialog.is_none());
+            let written = written.borrow();
+            let bytes = &written[0].1;
+            assert!(String::from_utf8_lossy(bytes).contains("/Encrypt"));
+            if open.is_empty() {
+                assert_eq!(vectorcraft_pdf::info(bytes, None).unwrap().pages.len(), 3);
+            } else {
+                assert_eq!(vectorcraft_pdf::info(bytes, None).unwrap_err(), vectorcraft_pdf::PdfError::NeedsPassword);
+            }
+            assert_eq!(vectorcraft_pdf::info(bytes, Some("wrong")).unwrap_err(), vectorcraft_pdf::PdfError::WrongPassword);
+            for password in [open, owner].into_iter().filter(|p| !p.is_empty()) {
+                assert_eq!(vectorcraft_pdf::info(bytes, Some(password)).unwrap().pages.len(), 3);
+            }
+        }
     }
 
     #[test]
