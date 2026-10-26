@@ -1481,6 +1481,9 @@ pub struct Session {
     /// While [`Session::place_queue_read`] runs `file.place.queue`: the files read for it, which
     /// the command loads the place cursor with instead of reading them; `None` otherwise.
     pub(crate) queue_hand_off: Option<cmd::place::QueueRead>,
+    /// While [`Session::import_image_read`] runs `clipboard.importImage`: the image read for it,
+    /// which the command loads instead of reading `dataBase64`; `None` otherwise.
+    pub(crate) image_hand_off: Option<cmd::clipboard::ImageRead>,
     /// Whether a click or drag of the place cursor asks the frontend to place its file
     /// ([`UiRequest::Place`]) instead of running `file.place`: the desktop app sets it to read the
     /// file off the UI thread. False: the file is placed at once.
@@ -1610,6 +1613,7 @@ impl Session {
             batch_steps: None,
             place_hand_off: None,
             queue_hand_off: None,
+            image_hand_off: None,
             place_cursor_requests: false,
             package_hand_off: None,
             screens_hand_off: None,

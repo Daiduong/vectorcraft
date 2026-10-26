@@ -192,7 +192,7 @@ use vectorcraft_engine::{Session, ViewInfo};
 
 pub use control::{ControlRequest, ControlResponse, Ticket as ControlTicket};
 pub use state::{UiState, View};
-pub use sysclip::{ClipboardProbeFactory, SystemClipboard};
+pub use sysclip::{ClipboardProbeFactory, ClipboardRead, MakeFlavour, SystemClipboard};
 
 /// A file type a dialog filters by: its label, which shows translated, and its extensions without
 /// the dot.
@@ -1079,10 +1079,6 @@ impl VectorcraftApp {
             }
         }
         if id.starts_with("edit.paste") {
-            if let Err(e) = self.adopt_system_clipboard() {
-                self.ui.status = e.clone();
-                return Err(e);
-            }
             // Paste (also without formatting) goes to the centre of the view.
             if matches!(id, "edit.paste" | "edit.pasteWithoutFormatting")
                 && ["center", "dx", "dy"].iter().all(|k| params.get(k).is_none())
@@ -1090,6 +1086,16 @@ impl VectorcraftApp {
                 && let Some(p) = params.as_object_mut()
             {
                 p.insert("center".into(), serde_json::json!([c.x, c.y]));
+            }
+            // A Paste the user gives decodes a bitmap off the UI thread ([`placing::adopt_for_paste`]),
+            // and runs with these params once it is decoded.
+            match placing::adopt_for_paste(self, id, &params) {
+                Err(e) => {
+                    self.ui.status = e.clone();
+                    return Err(e);
+                }
+                Ok(Some(started)) => return Ok(started),
+                Ok(None) => {}
             }
             if let Some(r) = dialogs::swatch_conflict::ask(self, id, &params) {
                 return r;

@@ -17,7 +17,7 @@ use std::io::{Cursor, Read};
 use std::path::PathBuf;
 
 use vectorcraft_engine::cmd::clipboard::{BITMAP, EPS, FILE_HEAD, Flavour, PDF, PNG, SVG, TEXT, file_flavour};
-use vectorcraft_ui_egui::SystemClipboard;
+use vectorcraft_ui_egui::{ClipboardRead, SystemClipboard};
 
 /// This platform's system clipboard.
 pub fn system_clipboard() -> Box<dyn SystemClipboard> {
@@ -240,10 +240,16 @@ mod win {
             // A clipboard manager may have copied our data again as its own.
             let Some(ours) = self.text.as_deref() else { return false };
             let Ok(_open) = clipboard_win::Clipboard::new_attempts(10) else { return false };
-            read_one(TEXT).is_some_and(|f| f.data == ours.as_bytes())
+            read_one(TEXT).and_then(ClipboardRead::flavour).is_some_and(|f| f.data == ours.as_bytes())
         }
 
         fn read(&mut self, mimes: &[&'static str]) -> Option<Flavour> {
+            self.read_deferred(mimes)?.flavour()
+        }
+
+        /// A device-independent bitmap is copied off the clipboard here and decoded and encoded
+        /// as PNG by the work that comes back.
+        fn read_deferred(&mut self, mimes: &[&'static str]) -> Option<ClipboardRead> {
             let mut files = vec![];
             {
                 let _open = clipboard_win::Clipboard::new_attempts(10).ok()?;
@@ -251,7 +257,7 @@ mod win {
                 let _ = raw::get_file_list_path(&mut files);
             }
             // The files are read with the clipboard closed again, not keeping other apps waiting.
-            copied_file(files, mimes).or_else(|| {
+            copied_file(files, mimes).map(ClipboardRead::Now).or_else(|| {
                 let _open = clipboard_win::Clipboard::new_attempts(10).ok()?;
                 mimes.iter().find_map(|m| read_one(m))
             })
@@ -275,17 +281,39 @@ mod win {
         })
     }
 
-    /// One flavour, while the clipboard is open.
-    fn read_one(mime: &'static str) -> Option<Flavour> {
+    /// A device-independent bitmap as a PNG flavour.
+    fn dib_png(dib: &[u8]) -> Option<Flavour> {
+        png_flavour(&dib_image(dib)?)
+    }
+
+    /// One flavour, while the clipboard is open. A device-independent bitmap is copied here, and
+    /// the work that comes back decodes it. When it can't be decoded, that work reads the next of
+    /// [`DIBS`] the clipboard holds, unless something was copied since.
+    fn read_one(mime: &'static str) -> Option<ClipboardRead> {
         let mut data = vec![];
         let mime = match mime {
             BITMAP if read_registered(PNG, &mut data) => PNG,
             BITMAP => {
-                return DIBS.into_iter().find_map(|id| {
-                    data.clear();
-                    raw::get_vec(id, &mut data).ok()?;
-                    png_flavour(&dib_image(&data)?)
-                });
+                let seq = raw::seq_num();
+                let (at, dib) = DIBS.into_iter().enumerate().find_map(|(at, id)| {
+                    let mut dib = vec![];
+                    raw::get_vec(id, &mut dib).ok()?;
+                    Some((at, dib))
+                })?;
+                let rest = DIBS.get(at + 1..).unwrap_or_default().to_vec();
+                return Some(ClipboardRead::Later(Box::new(move || {
+                    dib_png(&dib).or_else(|| {
+                        let _open = clipboard_win::Clipboard::new_attempts(10).ok()?;
+                        if raw::seq_num() != seq {
+                            return None;
+                        }
+                        rest.into_iter().find_map(|id| {
+                            let mut dib = vec![];
+                            raw::get_vec(id, &mut dib).ok()?;
+                            dib_png(&dib)
+                        })
+                    })
+                })));
             }
             TEXT => {
                 raw::get_string(&mut data).ok()?;
@@ -300,7 +328,7 @@ mod win {
         {
             data.truncate(end);
         }
-        (!data.is_empty()).then_some(Flavour { mime, data })
+        (!data.is_empty()).then_some(ClipboardRead::Now(Flavour { mime, data }))
     }
 }
 
@@ -370,22 +398,27 @@ mod portable {
         }
 
         fn read(&mut self, mimes: &[&'static str]) -> Option<Flavour> {
+            self.read_deferred(mimes)?.flavour()
+        }
+
+        /// arboard's image is read here and encoded as PNG by the work that comes back.
+        fn read_deferred(&mut self, mimes: &[&'static str]) -> Option<ClipboardRead> {
             let cb = self.cb().ok()?;
             if let Some(f) = cb.get().file_list().ok().and_then(|paths| copied_file(paths, mimes)) {
-                return Some(f);
+                return Some(ClipboardRead::Now(f));
             }
             mimes.iter().find_map(|m| {
                 #[cfg(target_os = "macos")]
                 if let Some(f) = super::mac::read(m) {
-                    return Some(f);
+                    return Some(ClipboardRead::Now(f));
                 }
                 match *m {
-                    TEXT => cb.get_text().ok().filter(|t| !t.is_empty()).map(|t| Flavour { mime: TEXT, data: t.into_bytes() }),
+                    TEXT => cb.get_text().ok().filter(|t| !t.is_empty()).map(|t| ClipboardRead::Now(Flavour { mime: TEXT, data: t.into_bytes() })),
                     BITMAP => {
                         let img = cb.get_image().ok()?;
-                        let rgba =
-                            image::RgbaImage::from_raw(u32::try_from(img.width).ok()?, u32::try_from(img.height).ok()?, img.bytes.into_owned())?;
-                        png_flavour(&rgba)
+                        let (width, height) = (u32::try_from(img.width).ok()?, u32::try_from(img.height).ok()?);
+                        let bytes = img.bytes.into_owned();
+                        Some(ClipboardRead::Later(Box::new(move || png_flavour(&image::RgbaImage::from_raw(width, height, bytes)?))))
                     }
                     _ => None,
                 }

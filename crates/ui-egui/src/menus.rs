@@ -3970,7 +3970,11 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
         && p.as_object().is_some_and(|o| !o.contains_key("to"))
         && app.session.active().is_some_and(|st| st.selection.anchors.is_empty());
     let p = if follows_align_to { crate::panels::align::with_align_to(app, p) } else { p };
-    if let Err(e) = app.run(id, p) {
+    // A Paste the user gives decodes a bitmap off the UI thread ([`crate::placing::adopt_for_paste`]).
+    app.placing.for_user = id.starts_with("edit.paste");
+    let r = app.run(id, p);
+    app.placing.for_user = false;
+    if let Err(e) = r {
         app.status(e);
     } else if matches!(id, "object.pattern.make" | "object.pattern.edit") {
         app.ui.open_panel = Some("patternOptions".into());
