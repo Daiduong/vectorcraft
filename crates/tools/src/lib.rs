@@ -30,6 +30,7 @@ pub mod pen;
 pub mod pie;
 pub mod place;
 pub mod printtiling;
+pub mod repeat_grid;
 pub mod rulerguide;
 pub mod select;
 pub mod settings;
@@ -352,6 +353,10 @@ pub struct ToolContext<'a> {
     /// two other objects in its row or column, or evenly between its two neighbours, and the
     /// equal gaps show.
     pub spacing_guides: bool,
+    /// Smart Guides → Invoke Distance Guides: with the Selection tool, Alt/Option held over another
+    /// object shows how far the selection is from it, and over an empty part of an artboard how
+    /// far it is from the artboard's edges ([`guides::distance_guides`]).
+    pub distance_guides: bool,
     /// Smart Guides → Snapping Tolerance (screen pixels): how near a smart guide target pulls the
     /// pointer, a dragged edge or a drawn point.
     pub snapping_tolerance: f64,
@@ -387,6 +392,10 @@ impl ToolContext<'_> {
     /// A size label: `W: …` over `H: …`.
     pub fn size_label(&self, w: f64, h: f64) -> String {
         format!("W: {}\nH: {}", self.len(w), self.len(h))
+    }
+    /// Star tool drag: outer (R1) and inner (R2) radii from the centre to the pointer.
+    pub fn star_radii_label(&self, outer: f64, inner: f64) -> String {
+        format!("R1: {}\nR2: {}", self.len(outer), self.len(inner))
     }
     /// A move label: `dX: …` over `dY: …`.
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
@@ -455,6 +464,9 @@ pub enum Overlay {
     Label { p: Point, text: String, color: [u8; 3] },
     /// Measurement pill near the cursor (grey box with white text).
     Measure { p: Point, text: String },
+    /// A Distance Guides measurement: a line from `a` to `b` with a tick across each end, and
+    /// `text` (its length) in a pill of `color` on its middle.
+    Distance { a: Point, b: Point, text: String, color: [u8; 3] },
     /// Translucent filled quad (text selection highlight), RGBA.
     Highlight { quad: [Point; 4], color: [u8; 4] },
     /// A colour chip of fixed screen size (a gradient stop), RGBA; ringed when selected.
@@ -554,8 +566,8 @@ pub enum Cursor {
     /// Over the type widget of selected type (a double-click converts point type to area type and
     /// back): the arrow with a type badge.
     TypeWidget,
-    /// The Selection tool loaded with the text of the out port of area type or type on a path (a
-    /// click threads it into a path or a new frame, a drag draws the new frame).
+    /// The Selection tool loaded with the text of area type or type on a path by a click on its out
+    /// or in port (a click threads it into a path or a new frame, a drag draws the new frame).
     LoadedText,
     /// The Shape Builder: a crosshair with a plus (merge mode)...
     ShapeBuilder,
@@ -567,13 +579,26 @@ pub enum Cursor {
     MagicWand,
     /// The Pencil tool.
     Pencil,
-    /// The Pencil tool with Alt held while Alt key toggles to Smooth Tool is off: releasing the
-    /// mouse button with Alt still held closes the path. A crosshair with a ring.
+    /// The Pencil tool before a press that draws a new freehand path: the pointer is not over a
+    /// selected path that the press would continue or redraw. A crosshair with a small star.
+    PencilNew,
+    /// The Pencil tool with Alt pressed after the drag starts and Alt key toggles to Smooth Tool off:
+    /// releasing the mouse button with Alt still held closes the path. A drag started with Shift or
+    /// Alt held draws an open straight line instead. Also while a freehand stroke is drawn back near
+    /// its start, where releasing the mouse button closes the path. A crosshair with a ring.
     PencilClose,
+    /// The Pencil tool before a press that draws a straight line (Shift or Alt held). A crosshair with a
+    /// short straight line.
+    PencilStraight,
+    /// The Pencil tool before a press that draws a straight line (Shift or Alt held), over an end of
+    /// a selected open path: the line continues the path from that end. A crosshair with a short
+    /// straight line leaving a square end point.
+    PencilContinue,
     /// The Paintbrush tool.
     Paintbrush,
     /// The Paintbrush tool with Alt held: releasing the mouse button with Alt still held closes
-    /// the path. A crosshair with a ring.
+    /// the path. Also while a stroke is drawn back near its start, where releasing the mouse button
+    /// closes the path. A crosshair with a ring.
     PaintbrushClose,
     /// The Blob Brush tool.
     BlobBrush,
@@ -685,7 +710,10 @@ impl Cursor {
             | Cursor::Lasso
             | Cursor::MagicWand
             | Cursor::Pencil
+            | Cursor::PencilNew
             | Cursor::PencilClose
+            | Cursor::PencilStraight
+            | Cursor::PencilContinue
             | Cursor::Paintbrush
             | Cursor::PaintbrushClose
             | Cursor::BlobBrush
@@ -714,7 +742,7 @@ impl Cursor {
     }
 
     /// The cursor this one borrows until it's drawn: the generic crosshair for the
-    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh tool and Puppet
+    /// tools, the I-beam for vertical type, the Pen's add cursor for the Mesh tool and Puppet
     /// Warp, not-allowed for the Scissors away from a path. `None` for a cursor with a look of
     /// its own.
     pub fn stand_in(self) -> Option<Self> {
@@ -743,11 +771,37 @@ impl Cursor {
             | Cursor::SymbolScreener
             | Cursor::SymbolStyler
             | Cursor::Scissors => Some(Cursor::Crosshair),
-            Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
+            Cursor::TypeVertical => Some(Cursor::Text),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
         }
+    }
+}
+
+/// What an IME's "delete the text around the cursor" counts: UTF-8 bytes (winit's raw
+/// `DeleteSurroundingBytes`) or Unicode scalar values (egui's `DeleteSurrounding`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SurroundingUnit {
+    Bytes,
+    Chars,
+}
+
+/// The committed logical text around an IME cursor, or the documented reason it is unavailable.
+///
+/// This type stays free of any UI dependency: offsets are UTF-8 bytes into `text`, `cursor` is the
+/// primary selection end and `anchor` the other (so `cursor > anchor` is a reversed selection).
+/// `text` is already bounded to the caller's request and has the pre-edit removed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ImeSurrounding {
+    Available { text: String, cursor: usize, anchor: usize },
+    Unavailable(&'static str),
+}
+
+impl Default for ImeSurrounding {
+    /// Report surrounding text as unavailable because no document is active.
+    fn default() -> Self {
+        Self::Unavailable("no document is active")
     }
 }
 
@@ -790,12 +844,46 @@ pub trait Tool: Send {
     fn text_input(&mut self, _cx: &ToolContext, _s: &str) -> Vec<Action> {
         vec![]
     }
+    /// Would [`Tool::text_input`] insert `text` exactly as given? False when it filters control
+    /// characters, normalizes newlines, applies Typographer's Quotes or otherwise rewrites the
+    /// insertion. An IME commit the application rewrites is an application edit: its receipt must
+    /// be `Other`, never `InputMethod`.
+    fn text_input_is_verbatim(&self, _cx: &ToolContext, _text: &str) -> bool {
+        true
+    }
+    /// Does the tool's open typing session still match the document? False when an external edit
+    /// replaced the text under it: the next IME commit starts a fresh session, which is an
+    /// application-side reset, not an accepted IME insertion.
+    fn ime_session_matches_document(&self, _cx: &ToolContext) -> bool {
+        true
+    }
     /// IME composition (marked text) for the tool that wants text: `text` replaces the previous
     /// marked text (or the selection); an empty `text` ends the composition. `active_chars` is the
     /// clause being converted, in characters of `text`. The committed result arrives through
     /// [`Tool::text_input`].
     fn ime_preedit(&mut self, _cx: &ToolContext, _text: &str, _active_chars: Option<std::ops::Range<usize>>) -> Vec<Action> {
         vec![]
+    }
+    /// An input method replaces text around its composition: delete `before` and `after` units
+    /// (bytes or characters, per [`SurroundingUnit`]) around the selection or pre-edit, in the
+    /// same typing session as the commit that follows. The selection/pre-edit itself is preserved
+    /// (the following commit replaces it), its direction is kept, and a unit count ending inside a
+    /// UTF-8 scalar leaves that scalar whole.
+    fn ime_delete_surrounding(&mut self, _cx: &ToolContext, _before: usize, _after: usize, _unit: SurroundingUnit) -> Vec<Action> {
+        vec![]
+    }
+    /// Stable IME owner data for the tool's current edit target: `(document uid, target id,
+    /// replacement epoch)`. The owner survives ordinary edits and caret moves; the replacement
+    /// epoch changes when the same target is started afresh (a new edit session).
+    fn ime_target(&self, _cx: &ToolContext) -> Option<(u64, u64, u64)> {
+        None
+    }
+    /// The committed logical text around the IME cursor, with UTF-8 byte offsets (`cursor` is the
+    /// primary end, `anchor` the other): the source for an outgoing surrounding-text payload
+    /// (egui's E21b). Pre-edit text is excluded and the offsets are remapped into the remaining
+    /// text; at most `max_bytes` bytes are copied (a wider selection is explicitly unavailable).
+    fn ime_surrounding(&self, _cx: &ToolContext, _max_bytes: usize) -> ImeSurrounding {
+        ImeSurrounding::Unavailable("the active tool has no IME text context")
     }
     /// Is uncommitted IME text being shown? Keys, shortcuts and Undo wait while it is.
     fn composing(&self) -> bool {
@@ -806,6 +894,17 @@ pub trait Tool: Send {
         None
     }
     fn notify(&mut self, _cx: &ToolContext, _what: &str) {}
+    /// The pointer stopped hovering for the tool while it holds no press: it left the canvas (for a
+    /// panel or out of the window), went under a floating panel, menu, popup or dialog, or a press
+    /// started panning, zooming or turning the view. Drop what shows only for the hover (the
+    /// Selection tool's Distance Guides).
+    fn hover_ended(&mut self, _cx: &ToolContext) {}
+    /// Whether what the tool shows for the hover depends on what lies under a still pointer: then
+    /// the canvas hovers it again where the pointer is when the view, the document or the
+    /// selection changes (the Selection tool while Alt shows Distance Guides).
+    fn wants_rehover(&self) -> bool {
+        false
+    }
     /// Called when the user switches away (finish pending work).
     fn deactivate(&mut self, _cx: &ToolContext) -> Vec<Action> {
         vec![]
@@ -824,6 +923,30 @@ pub trait Tool: Send {
     /// Does the tool want [`Tool::tick`]s now (the host keeps time only then)?
     fn wants_ticks(&self) -> bool {
         false
+    }
+    /// Does the tool build a stroke from the drag's samples (the Pencil and the other freehand
+    /// tools)? The host then hands it every position the pointer passed between two frames, not
+    /// only the last, so a fast stroke keeps its curve. Every other tool gets one drag a frame, so
+    /// one whose drag preview is costly (moving a large selection, Free Distort, the Width tool)
+    /// doesn't redo it for each sample.
+    fn wants_samples(&self) -> bool {
+        false
+    }
+    /// Is the tool waiting for work it runs on another thread (the planar map of a large selection
+    /// for the Shape Builder and the Live Paint Bucket)? It highlights no region under the pointer
+    /// until the work is done. While this holds, the desktop app calls [`Tool::poll`] each frame,
+    /// and hosts without frames call it with `wait` after a [`PointerKind::Move`].
+    fn waiting(&self) -> bool {
+        false
+    }
+    /// Checks on the work [`Tool::waiting`] reports, waiting for it to finish with `wait`. Once it
+    /// is done, the tool shows the highlight under the pointer where it last moved.
+    fn poll(&mut self, _cx: &ToolContext, _wait: bool) {}
+    /// The Shape Builder's planar map of the selection, with the outline edges, and the gap it
+    /// closes, when the tool has one. `shapeBuilder.merge` uses it in place of a map of its own
+    /// when the map's inputs are the merge's inputs.
+    fn shape_builder_map(&self) -> Option<(std::sync::Arc<builder::BuilderMap>, f64)> {
+        None
     }
 }
 
@@ -867,6 +990,20 @@ impl Tool for NoopTool {
     fn pointer(&mut self, _cx: &ToolContext, _ev: &PointerEvent) -> Vec<Action> {
         vec![]
     }
+}
+
+/// The most samples a drawn stroke (freehand, Liquify) keeps: later drags add nothing to it.
+pub(crate) const MAX_STROKE_SAMPLES: usize = 100_000;
+
+/// Samples up to which every drag previews the whole stroke; past it, a drag previews it every
+/// `n / PREVIEW_ALL_UNTIL` samples. Each preview carries every sample so far, so previewing at
+/// every sample cost the square of the stroke's length (a gesture of many drags sent at once
+/// spent seconds); this way it is about `PREVIEW_ALL_UNTIL` per sample.
+const PREVIEW_ALL_UNTIL: usize = 1000;
+
+/// Whether a drag that made the stroke `n` samples long previews it ([`PREVIEW_ALL_UNTIL`]).
+pub(crate) fn previews_at(n: usize) -> bool {
+    n <= PREVIEW_ALL_UNTIL || n.is_multiple_of(n / PREVIEW_ALL_UNTIL)
 }
 
 pub(crate) fn json_ids(ids: &[NodeId]) -> Value {
@@ -1047,6 +1184,7 @@ pub(crate) mod testutil {
             measurement_labels: true,
             transform_tools_guides: true,
             spacing_guides: true,
+            distance_guides: true,
             snapping_tolerance: 4.0,
             construction_angles: guides::construction_angles(guides::DEFAULT_CONSTRUCTION_ANGLES),
             screen: None,
@@ -1074,7 +1212,6 @@ mod cursor_tests {
         for (id, c) in [
             ("lasso", Cursor::Lasso),
             ("magicWand", Cursor::MagicWand),
-            ("pencil", Cursor::Pencil),
             ("paintbrush", Cursor::Paintbrush),
             ("blobBrush", Cursor::BlobBrush),
             ("eraser", Cursor::Eraser),
@@ -1100,6 +1237,13 @@ mod cursor_tests {
             assert_eq!(c.precise(), Cursor::Crosshair, "{id}");
             assert_eq!(c.stand_in(), Some(if id == "mesh" { Cursor::PenAdd } else { Cursor::Crosshair }), "{id}");
         }
+        // Away from a selected path the Pencil shows its new-path cursor, drawn with a star; its
+        // own cursor, for drawing and for a selected path under the pointer, borrows the crosshair.
+        assert_eq!(cursor_at("pencil", &d, away), Cursor::PencilNew);
+        assert_eq!(Cursor::PencilNew.precise(), Cursor::Crosshair);
+        assert_eq!(Cursor::PencilNew.stand_in(), None);
+        assert_eq!(Cursor::Pencil.precise(), Cursor::Crosshair);
+        assert_eq!(Cursor::Pencil.stand_in(), Some(Cursor::Crosshair));
     }
 
     #[test]

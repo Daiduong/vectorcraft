@@ -208,7 +208,7 @@ fn load(p: &Value, cmd: &str, board: Option<Rect>, link_pdf: bool) -> Result<Loa
         let (sx, sy) = pt_per_px(img.ppi);
         let natural = Rect::new(0.0, 0.0, img.width as f64 * sx, img.height as f64 * sy);
         let link = src.path.map(|path| super::links::link_info(path, &src.bytes));
-        let warnings = fileio::too_large_note(&img.blob.bytes).into_iter().collect();
+        let warnings = fileio::size_note(&img.blob.bytes).into_iter().collect();
         return Ok(Loaded { name, format, art: Art::Image(img), natural, warnings, link, board: None });
     }
     if pdf {
@@ -385,6 +385,7 @@ fn build(d: &mut Document, l: Loaded, link: Option<LinkInfo>) -> Node {
                 xf: Affine::scale_non_uniform(sx, sy),
                 link,
                 placement: Default::default(),
+                pixels: None,
             };
             Node::new(d.alloc_id(), NodeKind::Image(Box::new(im)))
         }

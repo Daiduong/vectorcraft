@@ -238,6 +238,29 @@ fn touch_type_moves_one_character_and_leaves_the_others_where_they_are() {
     assert!(s.execute("text.touchType", &json!({"id": id.0, "start": (1u64 << 32) + 1, "dy": 1})).is_err(), "no character there");
 }
 
+/// Touch Type on the first character of a list item moves that character and leaves the bullet
+/// where it is. The bullet stands for no character, so the first character still moves only up
+/// and down.
+#[test]
+fn touch_type_moves_the_first_character_of_a_list_item_and_not_its_bullet() {
+    let mut s = session();
+    let id = NodeId(s.execute("text.create", &json!({"x": 100, "y": 100, "text": "Type", "size": 40})).unwrap()["id"].as_u64().unwrap());
+    s.execute("text.setFormat", &json!({"ids": [id.0], "list": "bullet"})).unwrap();
+    let pens = |s: &Session| {
+        let t = obj(s, id);
+        let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &t);
+        let bullet = lay.glyphs.iter().find(|g| g.len == 0).map(|g| t.xf * (g.xf * Point::ZERO)).unwrap();
+        (bullet, lay.glyphs.iter().filter(|g| g.len > 0).map(|g| (g.byte, t.xf * (g.xf * Point::ZERO))).collect::<Vec<_>>())
+    };
+    let (bullet, before) = pens(&s);
+    assert!(s.execute("text.touchType", &json!({"id": id.0, "start": 0, "dx": 5})).is_err(), "no character before it to kern");
+    s.execute("text.touchType", &json!({"id": id.0, "start": 0, "dy": 3})).unwrap();
+    let (bullet_after, after) = pens(&s);
+    assert!(near(moved_by(&before, &after, 0), (0.0, -3.0)), "the T moves 3 pt up: {:?}", moved_by(&before, &after, 0));
+    assert!(near(moved_by(&before, &after, 1), (0.0, 0.0)));
+    assert!((bullet_after - bullet).hypot() < 1e-6, "the bullet stays: {bullet:?} {bullet_after:?}");
+}
+
 /// Raising, scaling or rotating a character leaves it and the characters after it where they
 /// were along the line, also where the font kerns it with its neighbors (the T and the y).
 #[test]
@@ -522,6 +545,164 @@ fn undo_while_typing_takes_back_only_the_typing_and_redo_returns_it() {
     assert_eq!(obj(&s, id).plain_text(), "abc!");
 }
 
+fn list_markers(s: &Session, id: NodeId) -> Vec<String> {
+    vectorcraft_text::layout(vectorcraft_text::FontDb::global(), &obj(s, id)).markers.iter().map(|m| m.text.clone()).collect()
+}
+
+/// Typed list detection: at the start of a paragraph, "1.", "1)", "A." or "A)" and a space start
+/// a numbered list, and "*", "#", ">" or "+" and a space start a bulleted list with the filled dot.
+/// The typed characters go, the paragraph takes the hanging indent, and the text typed next is the
+/// list item's. One Undo puts the typed characters back with no list, and typing goes on after
+/// them, also after a Backspace that deleted nothing.
+#[test]
+fn typing_a_list_start_and_a_space_starts_a_list() {
+    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    let v = ViewInfo::default();
+    let (arabic, letters, dot) =
+        (ParaList::numbered(NumberStyle::Arabic), ParaList::numbered(NumberStyle::UpperLetters), ParaList::bulleted(Bullet::Dot));
+    let cases = [("1.", arabic, "1."), ("1)", arabic, "1."), ("A.", letters, "A."), ("A)", letters, "A.")];
+    let bullets = ["*", "#", ">", "+"].map(|b| (b, dot, "\u{2022}"));
+    for (typed, list, marker) in cases.into_iter().chain(bullets) {
+        let mut s = session();
+        s.select_tool("type", v).unwrap();
+        click(&mut s, 200.0, 200.0);
+        let id = s.doc().unwrap().selection.objects[0];
+        for c in typed.chars() {
+            s.tool_text(&c.to_string(), v).unwrap();
+        }
+        s.tool_text(" ", v).unwrap();
+        let t = obj(&s, id);
+        assert_eq!((t.plain_text().as_str(), t.para_at(0).list), ("", Some(list)), "{typed}");
+        assert_eq!((t.para_at(0).left_indent, t.para_at(0).first_line_indent), (18.0, -18.0), "{typed}");
+        assert_eq!(undo_labels(&s).last().map(String::as_str), Some("Bullets and Numbering"), "{typed}");
+        s.tool_text("Apples", v).unwrap();
+        assert_eq!((obj(&s, id).plain_text().as_str(), obj(&s, id).para_at(0).list), ("Apples", Some(list)), "{typed}");
+        assert_eq!(list_markers(&s, id), [marker], "{typed}");
+        key(&mut s, ToolKey::Enter, Mods::default());
+        s.tool_text("Pears", v).unwrap();
+        assert_eq!(obj(&s, id).para_at(1).list, Some(list), "Return continues the list: {typed}");
+        // One Undo after the space puts the characters back with no list; typing goes on after them.
+        let mut s = session();
+        s.select_tool("type", v).unwrap();
+        click(&mut s, 200.0, 200.0);
+        let id = s.doc().unwrap().selection.objects[0];
+        for c in typed.chars() {
+            s.tool_text(&c.to_string(), v).unwrap();
+        }
+        s.tool_text(" ", v).unwrap();
+        // A Backspace at the start of the empty item deletes nothing and leaves that as it is.
+        key(&mut s, ToolKey::Backspace, Mods::default());
+        s.execute("edit.undo", &json!({})).unwrap();
+        let t = obj(&s, id);
+        assert_eq!((t.plain_text(), t.para_at(0).list), (format!("{typed} "), None), "{typed}");
+        assert_eq!((t.para_at(0).left_indent, t.para_at(0).first_line_indent), (0.0, 0.0), "{typed}");
+        s.tool_text("x", v).unwrap();
+        assert_eq!((obj(&s, id).plain_text(), obj(&s, id).para_at(0).list), (format!("{typed} x"), None), "{typed}");
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(obj(&s, id).plain_text(), "", "the typing before the list is a step of its own: {typed}");
+    }
+}
+
+/// A list typed before a paragraph's text: the caret stays before the text, goes after the typed
+/// characters when Undo puts them back, also after undoing what was typed after the list, and
+/// before the text again after Redo, also when the text starts with the same characters.
+#[test]
+fn the_caret_follows_undo_and_redo_of_a_typed_list() {
+    let v = ViewInfo::default();
+    for start in ["Apples", "* Apples"] {
+        let mut s = session();
+        let id = text(&mut s, start);
+        s.select_tool("type", v).unwrap();
+        click(&mut s, 101.0, 95.0);
+        s.set_tool_option("select", &json!({"start": 0, "end": 0}));
+        for c in "* ".chars() {
+            s.tool_text(&c.to_string(), v).unwrap();
+        }
+        let state = |s: &Session| (obj(s, id).plain_text(), s.tool_options()["caret"].clone());
+        assert_eq!(state(&s), (start.to_string(), json!(0)));
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(state(&s), (format!("* {start}"), json!(2)));
+        s.execute("edit.redo", &json!({})).unwrap();
+        assert_eq!(state(&s), (start.to_string(), json!(0)));
+        s.tool_text("x", v).unwrap();
+        assert_eq!(obj(&s, id).plain_text(), format!("x{start}"));
+        // Undo of the typing and then of the list: typing goes on after the characters again.
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.execute("edit.undo", &json!({})).unwrap();
+        s.tool_text("y", v).unwrap();
+        assert_eq!(obj(&s, id).plain_text(), format!("* y{start}"));
+    }
+}
+
+/// The same characters later in a paragraph, without the space, typed in one piece with the space
+/// (a paste), or at the start of a paragraph that is already in a list start nothing.
+#[test]
+fn list_starts_typed_elsewhere_or_pasted_start_no_list() {
+    use vectorcraft_doc::text::{NumberStyle, ParaList};
+    let v = ViewInfo::default();
+    let mut s = session();
+    s.select_tool("type", v).unwrap();
+    click(&mut s, 200.0, 200.0);
+    let id = s.doc().unwrap().selection.objects[0];
+    for c in "Fruit 1. * A) x".chars() {
+        s.tool_text(&c.to_string(), v).unwrap();
+    }
+    key(&mut s, ToolKey::Enter, Mods::default());
+    s.tool_text("1. Apples", v).unwrap();
+    key(&mut s, ToolKey::Enter, Mods::default());
+    for c in "1.Pears".chars() {
+        s.tool_text(&c.to_string(), v).unwrap();
+    }
+    key(&mut s, ToolKey::Enter, Mods::default());
+    s.tool_text("* ", v).unwrap();
+    let t = obj(&s, id);
+    assert_eq!(t.plain_text(), "Fruit 1. * A) x\n1. Apples\n1.Pears\n* ");
+    assert_eq!((0..4).map(|i| t.para_at(i).list).collect::<Vec<_>>(), [None, None, None, None]);
+    assert!(!undo_labels(&s).iter().any(|l| l == "Bullets and Numbering"));
+    // A paragraph in a list keeps its list, and the typed characters stay as text.
+    let id = text(&mut s, "Item");
+    s.execute("text.setFormat", &json!({"ids": [id.0], "list": "number"})).unwrap();
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    click(&mut s, 101.0, 95.0);
+    s.set_tool_option("select", &json!({"start": 0, "end": 0}));
+    for c in "* ".chars() {
+        s.tool_text(&c.to_string(), v).unwrap();
+    }
+    let t = obj(&s, id);
+    assert_eq!((t.plain_text().as_str(), t.para_at(0).list), ("* Item", Some(ParaList::numbered(NumberStyle::Arabic))));
+}
+
+/// `text.startList`, which the Type tool runs, works from scripts too: by default it reads the
+/// text up to the end, and it changes nothing (and records no step) when the text there starts no
+/// list.
+#[test]
+fn start_list_command_removes_the_typed_characters_and_starts_the_list() {
+    use vectorcraft_doc::text::{Bullet, NumberStyle, ParaList};
+    let mut s = session();
+    let id = text(&mut s, "Fruit\n1) Apples");
+    let r = s.execute("text.startList", &json!({"id": id.0, "at": 9})).unwrap();
+    assert_eq!(r, json!({"id": id.0, "started": true, "caret": 6}));
+    let t = obj(&s, id);
+    assert_eq!(
+        (t.plain_text().as_str(), t.para_at(0).list, t.para_at(1).list),
+        ("Fruit\nApples", None, Some(ParaList::numbered(NumberStyle::Arabic)))
+    );
+    assert_eq!(list_markers(&s, id), ["1."]);
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!((obj(&s, id).plain_text().as_str(), obj(&s, id).para_at(1).list), ("Fruit\n1) Apples", None));
+    let id = text(&mut s, "x\n# ");
+    let r = s.execute("text.startList", &json!({"id": id.0})).unwrap();
+    assert_eq!((r["started"].clone(), obj(&s, id).plain_text()), (json!(true), "x\n".to_string()));
+    assert_eq!(obj(&s, id).para_at(1).list, Some(ParaList::bulleted(Bullet::Dot)));
+    let steps = undo_labels(&s).len();
+    let id = text(&mut s, "1.x");
+    assert_eq!(s.execute("text.startList", &json!({"id": id.0, "at": 3})).unwrap()["started"], json!(false));
+    assert_eq!(undo_labels(&s).len(), steps + 1, "only text.create's step");
+    assert!(s.execute("text.startList", &json!({"id": id.0, "at": "3"})).is_err(), "`at` is a number");
+    assert!(s.execute("text.startList", &json!({"at": 3})).is_err(), "id required");
+}
+
 /// #1881: a Cmd/Ctrl drag while typing (the Selection tool lent to the Type tool) moves the type
 /// and keeps what was typed, and typing goes on after it.
 #[test]
@@ -544,6 +725,62 @@ fn a_cmd_drag_while_typing_moves_the_type_and_keeps_the_typing() {
     assert_eq!(obj(&s, id).plain_text(), "Hello!");
     let after = s.doc().unwrap().doc.bounds_of(&[id], false).unwrap();
     assert!((after.x0 - moved.x0).abs() < 1e-6, "and stays where it was moved: {after:?}");
+}
+
+fn cmd_click(s: &mut Session, x: f64, y: f64) {
+    let (v, cmd) = (ViewInfo::default(), Mods { cmd: true, ..Default::default() });
+    for k in [PointerKind::Down, PointerKind::Up] {
+        s.pointer(&PointerEvent::new(k, x, y).with_mods(cmd), v).unwrap();
+    }
+}
+
+/// #3779: a Cmd/Ctrl click on another object while typing selects it and ends the text edit, so
+/// the keys that follow are shortcuts again and not typing.
+#[test]
+fn a_cmd_click_on_another_object_while_typing_ends_the_text_edit() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    let r = s.execute("shape.rectangle", &json!({"x": 500, "y": 400, "width": 50, "height": 50})).unwrap();
+    let rect = NodeId(r["id"].as_u64().unwrap());
+    s.select_tool("type", v).unwrap();
+    click(&mut s, 200.0, 200.0);
+    let id = s.doc().unwrap().selection.objects[0];
+    s.tool_text("Hello", v).unwrap();
+    cmd_click(&mut s, 525.0, 425.0);
+    assert_eq!(s.doc().unwrap().selection.objects, vec![rect], "the rectangle is selected");
+    assert!(!s.tool_wants_text(), "the text edit ended");
+    s.tool_text("v", v).unwrap();
+    assert_eq!(obj(&s, id).plain_text(), "Hello", "a later key is not typed into the text");
+    assert_eq!(s.tool_id(), "type", "the Type tool is back");
+}
+
+/// #3779: a Cmd/Ctrl click on empty canvas while typing deselects the text and ends its edit.
+#[test]
+fn a_cmd_click_on_empty_canvas_while_typing_ends_the_text_edit() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    s.select_tool("type", v).unwrap();
+    click(&mut s, 200.0, 200.0);
+    let id = s.doc().unwrap().selection.objects[0];
+    s.tool_text("Hello", v).unwrap();
+    cmd_click(&mut s, 600.0, 450.0);
+    assert!(s.doc().unwrap().selection.objects.is_empty(), "nothing is selected");
+    assert!(!s.tool_wants_text(), "the text edit ended");
+    s.tool_text("v", v).unwrap();
+    assert_eq!(obj(&s, id).plain_text(), "Hello", "a later key is not typed into the text");
+}
+
+/// #3779: point type a click placed and nothing was typed into goes away on a Cmd/Ctrl click
+/// elsewhere, as it does on Escape.
+#[test]
+fn a_cmd_click_away_from_empty_point_type_discards_it() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    s.select_tool("type", v).unwrap();
+    click(&mut s, 200.0, 200.0);
+    let id = s.doc().unwrap().selection.objects[0];
+    cmd_click(&mut s, 600.0, 450.0);
+    assert!(s.doc().unwrap().doc.node(id).is_none(), "the empty type is discarded");
 }
 
 #[test]
@@ -1159,4 +1396,63 @@ fn clicking_the_out_port_then_the_canvas_threads_the_text_into_a_new_frame() {
     assert_eq!(thread[0], id);
     assert_eq!(format!("{}{}", obj(&s, id).plain_text(), obj(&s, thread[1]).plain_text()), long);
     assert_eq!(&undo_labels(&s)[steps..], ["Thread Text"]);
+}
+
+/// #2572: with the Selection tool, area type whose text fits shows both ports, and a click on its
+/// in port then on empty canvas makes a new frame the story starts in, flowing on into the frame
+/// clicked, in one undo step; the ports then show the thread's arrows.
+#[test]
+fn clicking_the_in_port_then_the_canvas_threads_a_new_frame_before_it() {
+    let mut s = session();
+    let v = ViewInfo::default();
+    let words = "Words that fit. ";
+    let r = s.execute("text.create", &json!({"x": 50, "y": 50, "text": words, "size": 12, "area": {"width": 100, "height": 40}})).unwrap();
+    let id = NodeId(r["id"].as_u64().unwrap());
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.select_tool("selection", v).unwrap();
+    let boxes = |s: &mut Session| {
+        s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Highlight { color: [255, 255, 255, 255], .. })).count()
+    };
+    assert_eq!(boxes(&mut s), 2, "an in port and an out port");
+    let steps = undo_labels(&s).len();
+    click(&mut s, 50.0, 50.0 + vectorcraft_tools::text::PORT_RISE_PX);
+    assert_eq!(s.cursor(Point::new(400.0, 400.0), Mods::default(), v), vectorcraft_tools::Cursor::LoadedText);
+    click(&mut s, 400.0, 400.0);
+    let doc = &s.doc().unwrap().doc;
+    let [thread] = &doc.text_threads[..] else { panic!("one thread: {:?}", doc.text_threads) };
+    assert_eq!(thread[1], id, "the frame clicked comes second");
+    assert_eq!(format!("{}{}", obj(&s, thread[0]).plain_text(), obj(&s, id).plain_text()), words);
+    assert!(!obj(&s, thread[0]).plain_text().is_empty(), "the story starts in the new frame");
+    assert_eq!(&undo_labels(&s)[steps..], ["Thread Text"]);
+    let strokes = s.overlays(v).iter().filter(|o| matches!(o, vectorcraft_tools::Overlay::Line { .. })).count();
+    assert_eq!(strokes, 6, "both frames selected: the first one's out port and the second one's in port show arrows");
+}
+
+/// Given a family without a style, text.create, text.createInPath and text.setStyle keep the style
+/// when the family has it, else take the family's closest one, as text.setRangeStyle does: a family
+/// whose styles are numbered has no Regular to store (#4128). A style given is kept as given.
+#[test]
+fn a_family_without_its_style_takes_its_closest_style() {
+    use vectorcraft_text::test_fonts::{NUMBERED_FAMILY as FAMILY, numbered_font};
+    let db = vectorcraft_text::FontDb::global();
+    db.add_font(numbered_font("W3").unwrap());
+    db.add_font(numbered_font("W6").unwrap());
+    let numbered = ["W3", "W6"];
+    let style = |s: &Session, id: NodeId| obj(s, id).runs[0].style.font_style.clone();
+    let create = |s: &mut Session, p: Value| NodeId(s.execute("text.create", &p).unwrap()["id"].as_u64().unwrap());
+    let mut s = session();
+    let created = create(&mut s, json!({"x": 10, "y": 50, "text": "a", "font": FAMILY}));
+    assert!(numbered.contains(&style(&s, created).as_str()), "text.create: {}", style(&s, created));
+    let pid = s.execute("path.create", &json!({"d": "M100 400 L400 100"})).unwrap()["id"].as_u64().unwrap();
+    let on_path = s.execute("text.createInPath", &json!({"path": pid, "mode": "onPath", "text": "a", "font": FAMILY})).unwrap();
+    let on_path = NodeId(on_path["id"].as_u64().unwrap());
+    assert!(numbered.contains(&style(&s, on_path).as_str()), "text.createInPath: {}", style(&s, on_path));
+    let given = create(&mut s, json!({"x": 10, "y": 90, "text": "a", "font": FAMILY, "style": "Medium"}));
+    assert_eq!(style(&s, given), "Medium", "a style given is kept");
+    let set = text(&mut s, "a");
+    s.execute("text.setStyle", &json!({"ids": [set.0], "font": FAMILY})).unwrap();
+    assert!(numbered.contains(&style(&s, set).as_str()), "text.setStyle: {}", style(&s, set));
+    s.execute("text.setStyle", &json!({"ids": [set.0], "style": "W6"})).unwrap();
+    s.execute("text.setStyle", &json!({"ids": [set.0], "font": FAMILY})).unwrap();
+    assert_eq!(style(&s, set), "W6", "a style the family has is kept");
 }
