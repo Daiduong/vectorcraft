@@ -292,8 +292,26 @@ fn pencil_redraws_the_section_of_a_selected_path_between_its_ends() {
     }
 }
 
+/// An open path: a stroke that starts in the middle and ends away keeps the side it heads away
+/// from and appends the stroke (#3793).
+#[test]
+fn pencil_redraw_extend_from_open_path_when_stroke_ends_away() {
+    let mut s = session();
+    let id = line(&mut s, 0.0, 100.0, 300.0, 100.0);
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.execute("path.freehand", &json!({"points": [[150, 100], [150, 200], [180, 220]], "redraw": {"id": id.0, "within": 4}})).unwrap();
+    assert_eq!(paths(&s).len(), 1);
+    let sp = &path(&s, id).subpaths[0];
+    assert!(!sp.closed);
+    let ps: Vec<Point> = sp.anchors.iter().map(|a| a.p).collect();
+    assert!(near(ps[0], Point::new(0.0, 100.0)), "keeps the left side: {ps:?}");
+    let bbox = kurbo::Shape::bounding_box(&path(&s, id).to_bezpath());
+    assert!(bbox.y1 > 200.0, "stroke extends downward: {bbox}");
+    assert!(!ps.iter().any(|p| (p.x - 300.0).abs() < 1.0 && (p.y - 100.0).abs() < 1.0), "right end dropped: {ps:?}");
+}
+
 /// On a closed path the stroke replaces the shorter way between where it starts and ends, and the
-/// path stays closed; a stroke that doesn't end on the path draws a new one.
+/// path stays closed; a stroke that starts on the path but ends away opens it and appends the stroke.
 #[test]
 fn pencil_redraws_the_shorter_way_round_a_closed_path() {
     let mut s = session();
@@ -310,11 +328,13 @@ fn pencil_redraws_the_shorter_way_round_a_closed_path() {
     }
     let top = kurbo::Shape::bounding_box(&path(&s, id).to_bezpath()).y0;
     assert!(top < -20.0, "the dip: top {top}");
-    // Not ending on the path: a new path, the rectangle as it was.
-    let before = path(&s, id);
+    // Starting on the path but ending away: one open path with the outline and the stroke (#3793).
     s.execute("path.freehand", &json!({"points": [[50, 100], [80, 150], [120, 160]], "redraw": {"id": id.0, "within": 4}})).unwrap();
-    assert_eq!(paths(&s).len(), 2);
-    assert_eq!(path(&s, id), before);
+    assert_eq!(paths(&s).len(), 1);
+    let sp = &path(&s, id).subpaths[0];
+    assert!(!sp.closed);
+    let bbox = kurbo::Shape::bounding_box(&path(&s, id).to_bezpath());
+    assert!(bbox.y1 > 155.0, "stroke extends below the rectangle: {bbox}");
     assert!(s.execute("path.freehand", &json!({"points": [[0, 0], [1, 1]], "redraw": {"id": id.0, "within": -1}})).is_err());
 }
 
