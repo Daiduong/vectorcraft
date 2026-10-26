@@ -3019,3 +3019,29 @@ fn a_stroke_back_near_the_path_joins_it_smoothly() {
     let top = kurbo::Shape::bounding_box(&path(&s, id).to_bezpath()).y0;
     assert!(top < -35.0, "the bump: top {top}");
 }
+
+/// With the Pencil's Live preview off, nothing is added to the document while a filled stroke is
+/// drawn; the release draws the path with its fill, as one undo step.
+#[test]
+fn pencil_with_live_preview_off_draws_the_filled_path_on_release() {
+    let mut s = session();
+    s.execute("select.none", &json!({})).unwrap();
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    s.set_tool_option_cmd(&json!({"tool": "pencil", "values": {"livePreview": false, "fill": true}})).unwrap();
+    assert_eq!(s.tool_options_of("pencil")["livePreview"], json!(false));
+    let v = view();
+    s.select_tool("pencil", v).unwrap();
+    let count = |s: &Session| s.doc().unwrap().doc.layers[0].children().map_or(0, |c| c.len());
+    let (before, undo) = (count(&s), s.doc().unwrap().history.undo.len());
+    s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 100.0), v).unwrap();
+    for (x, y) in [(160.0, 110.0), (190.0, 170.0), (120.0, 190.0), (105.0, 120.0)] {
+        s.pointer(&PointerEvent::new(PointerKind::Drag, x, y), v).unwrap();
+        assert_eq!(count(&s), before, "nothing drawn while the stroke is drawn");
+    }
+    s.pointer(&PointerEvent::new(PointerKind::Up, 105.0, 120.0), v).unwrap();
+    assert_eq!(count(&s), before + 1, "the release draws the path");
+    let doc = &s.doc().unwrap().doc;
+    let n = doc.layers[0].children().unwrap().last().unwrap();
+    assert!(n.path_data().is_some() && !n.appearance.fill_paint().is_none(), "{:?}", n.appearance);
+    assert_eq!(s.doc().unwrap().history.undo.len(), undo + 1, "one undo step");
+}
