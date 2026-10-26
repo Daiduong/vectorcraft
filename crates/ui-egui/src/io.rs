@@ -18,7 +18,7 @@ const TEMPLATE_EXTS: &[&str] = &["vctemplate", "ait", "vectorcraft", "drawcraft"
 
 /// Open bytes of any readable format as a new document (templates open untitled); swatch and
 /// graphic style library files open in the library panel, Libraries panel files are added to it,
-/// flattener, PDF, print and perspective grid presets files are imported, a shortcut set another
+/// flattener, PDF, print, perspective grid and export presets files are imported, a shortcut set another
 /// app saved (`.kys`) opens Import Shortcut Set, and a script written for the reference app
 /// (`.jsx`, `.jsxinc`, `.jsxbin`) shows its check (Check Script…). → `document.open`'s result for
 /// a document opened now (its `warnings` say what didn't come in as it was), else null.
@@ -40,21 +40,18 @@ pub fn open_bytes(app: &mut VectorcraftApp, name: &str, bytes: &[u8], path: Opti
         return dialogs::script_check::command(app, &p).map(|_| Value::Null);
     }
     if let Some(OpensAs::Presets { import, what }) = opens {
-        let r = app.run(import, serde_json::json!({"data": String::from_utf8_lossy(bytes)}))?;
-        let names: Vec<&str> = r["imported"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
-        app.status(format!("Imported {what}: {}", names.join(", ")));
+        import_presets(app, import, what, serde_json::json!({"dataBase64": vectorcraft_format::base64_encode(bytes)}))?;
         return Ok(Value::Null);
     }
     if opens == Some(OpensAs::Library) {
-        return crate::panels::libraries::import(app, json!({"data": String::from_utf8_lossy(bytes)})).map(|_| Value::Null);
+        return crate::panels::libraries::import(app, json!({"dataBase64": vectorcraft_format::base64_encode(bytes)})).map(|_| Value::Null);
     }
     let swatches = opens == Some(OpensAs::SwatchLibrary);
     if swatches || opens == Some(OpensAs::StyleLibrary) {
         let p = match path {
             Some(path) => serde_json::json!({ "path": path }),
-            // `.ase` swatch libraries are binary.
-            None if swatches => serde_json::json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}),
-            None => serde_json::json!({"name": name, "data": String::from_utf8_lossy(bytes)}),
+            // The file's bytes as they are (`.ase` swatch libraries are binary).
+            None => serde_json::json!({"name": name, "dataBase64": vectorcraft_format::base64_encode(bytes)}),
         };
         let load = if swatches { crate::panels::swatches::load_library } else { crate::panels::graphic_styles::load_library };
         return load(app, p).map(|_| Value::Null);
@@ -79,7 +76,7 @@ pub enum OpensAs {
     ShortcutSet,
     /// A script written for the reference app: checked without running it (Check Script…).
     Script,
-    /// Flattener, PDF, print or perspective grid presets: imported with command `import`, and
+    /// Flattener, PDF, print, perspective grid or export presets: imported with command `import`, and
     /// `what` names them in the status bar.
     Presets { import: &'static str, what: &'static str },
     /// A Libraries panel file: added to the Libraries panel as a new library.
@@ -88,6 +85,18 @@ pub enum OpensAs {
     SwatchLibrary,
     /// A graphic style library: opened in the library panel.
     StyleLibrary,
+}
+
+/// What the status bar calls the presets of an export presets file.
+pub(crate) const EXPORT_PRESETS: &str = "export presets";
+
+/// Run presets command `import` with `p` (the file) and say in the status bar which presets
+/// (`what`) it added → its result.
+pub(crate) fn import_presets(app: &mut VectorcraftApp, import: &str, what: &str, p: Value) -> Result<Value, String> {
+    let r = app.run(import, p)?;
+    let names: Vec<&str> = r["imported"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    app.status(format!("Imported {what}: {}", names.join(", ")));
+    Ok(r)
 }
 
 /// The kind of file named `name` (by its extension) that File → Open installs, imports, checks,
@@ -101,6 +110,7 @@ pub fn opens_as(name: &str) -> Option<OpensAs> {
         (vectorcraft_engine::cmd::pdfcmds::PRESET_EXTS, "pdf.preset.import", "PDF presets"),
         (vectorcraft_engine::cmd::printpresets::PRESET_EXTS, "print.presets.import", "print presets"),
         (vectorcraft_engine::cmd::perspgrid::PRESET_EXTS, "perspective.presets.import", "perspective grid presets"),
+        (fileio::SCREEN_EXPORT_PRESET_EXTS, "document.exportPresets.import", EXPORT_PRESETS),
     ];
     if vectorcraft_engine::cmd::plugin::EXTS.contains(&ext.as_str()) {
         Some(OpensAs::Plugin)
@@ -442,6 +452,7 @@ const FILE_TYPES: &[(&str, &[&str])] = &[
     ("PDF presets", vectorcraft_engine::cmd::pdfcmds::PRESET_EXTS),
     ("Perspective grid presets", vectorcraft_engine::cmd::perspgrid::PRESET_EXTS),
     ("Print presets", vectorcraft_engine::cmd::printpresets::PRESET_EXTS),
+    ("Export presets", fileio::SCREEN_EXPORT_PRESET_EXTS),
     ("CSS", &["css"]),
     ("PostScript", &["ps"]),
 ];
@@ -1325,5 +1336,28 @@ mod tests {
         let png = vectorcraft_format::base64_decode(r["result"]["dataBase64"].as_str().unwrap()).unwrap();
         assert_eq!(&png[16..20], 60u32.to_be_bytes(), "30 pt at scale 2");
         assert!(written.borrow().is_empty(), "no file and no save dialog");
+    }
+
+    /// A presets file, a Libraries panel file or a graphic style library that is opened or dropped
+    /// goes to its importer as the file's bytes: a byte that is not UTF-8 is refused instead of
+    /// read as a replacement character.
+    #[test]
+    fn opened_preset_and_library_files_keep_their_bytes() {
+        let (mut app, _) = app();
+        app.run("file.new", json!({"width": 60, "height": 40})).unwrap();
+        app.run("document.exportPresets.save", json!({"name": "Pack", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+        let presets = app.run("document.exportPresets.export", json!({"names": ["Pack"]})).unwrap()["data"].as_str().unwrap().to_string();
+        let lib = app.run("library.create", json!({"name": "Brand"})).unwrap()["id"].as_str().unwrap().to_string();
+        let library = app.run("library.export", json!({ "library": lib })).unwrap()["data"].as_str().unwrap().to_string();
+        let styles = app.run("graphicStyle.saveLibrary", json!({"name": "Kit"})).unwrap()["data"].as_str().unwrap().to_string();
+        for (file, text, name) in [("pack.vcexportpresets", presets, "Pack"), ("brand.vclibrary", library, "Brand"), ("kit.vcstyles", styles, "Kit")]
+        {
+            let mut bytes = text.as_bytes().to_vec();
+            bytes.insert(text.find(name).unwrap() + 2, 0xFF);
+            assert!(open_bytes(&mut app, file, &bytes, None).is_err(), "{file}: {}", app.ui.status);
+            // The file as it was still opens.
+            open_bytes(&mut app, file, text.as_bytes(), None).unwrap();
+        }
+        assert_eq!(app.session.prefs.screen_export_presets.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["Pack", "Pack 2"]);
     }
 }
