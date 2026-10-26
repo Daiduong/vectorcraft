@@ -117,7 +117,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Brush Options…",
             [],
             None,
-            "{name, params?: {…fields to change (brush.get shows them; values outside their ranges are clamped). calligraphic: angle −180..180°, roundness 0..100%, size 0..1296 pt, variation: [angle°, roundness%, size pt], modes: [fixed|random|pressure for angle, roundness, size] (pressure goes from value − variation at the lightest pen pressure to value + variation at the heaviest). scatter: size [a, b] 1..10000%, spacing [a, b] 1..10000%, scatter [a, b] −1000..1000%, rotation [a, b] −180..180°, modes: [fixed|random|pressure for size, spacing, scatter, rotation] (fixed: a; random: between a and b; pressure: a at the lightest pen pressure to b at the heaviest), rotation_relative_to_path. art: width 1..1000%, scale: {mode: proportional|stretch|betweenGuides, start, end: 0..1 of the art length}, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flip_along, flip_across, overlap. pattern: scale 1..10000%, spacing 0..10000%, fit: stretch|addSpace|approximate, flip_along, flip_across. scatter, art and pattern: colorization: {method: none|tints|tintsAndShades|hueShift, key: colour (hueShift: the art colour that becomes the stroke colour; without a key: the solid color the art's fills and strokes use most, black when they use none)}; colorization and the art brush's scale change only the fields given}, newName? (trimmed; blank: the name is kept; a new bristle brush name has at most 31 characters, and a longer name the brush has is kept)} edit a brush definition (strokes using it update) → {name}",
+            "{name, params?: {…fields to change (brush.get shows them; values outside their ranges are clamped). calligraphic: angle −180..180°, roundness 0..100%, size 0..1296 pt, variation: [angle°, roundness%, size pt], modes: [fixed|random|pressure for angle, roundness, size] (pressure goes from value − variation at the lightest pen pressure to value + variation at the heaviest). scatter: size [a, b] 1..10000%, spacing [a, b] 1..10000%, scatter [a, b] −1000..1000%, rotation [a, b] −180..180°, modes: [fixed|random|pressure for size, spacing, scatter, rotation] (fixed: a; random: between a and b; pressure: a at the lightest pen pressure to b at the heaviest), rotation_relative_to_path. art: width 1..1000%, width_mode: null (fixed)|pressure, width_max 1..1000% (pressure: width at the lightest pen pressure to width_max at the heaviest, half way on a stroke drawn without pressure), scale: {mode: proportional|stretch|betweenGuides, start, end: 0..1 of the art length}, direction: leftToRight|rightToLeft|topToBottom|bottomToTop, flip_along, flip_across, overlap. pattern: scale 1..10000%, spacing 0..10000%, fit: stretch|addSpace|approximate, flip_along, flip_across. scatter, art and pattern: colorization: {method: none|tints|tintsAndShades|hueShift, key: colour (hueShift: the art colour that becomes the stroke colour; without a key: the solid color the art's fills and strokes use most, black when they use none)}; colorization and the art brush's scale change only the fields given}, newName? (trimmed; blank: the name is kept; a new bristle brush name has at most 31 characters, and a longer name the brush has is kept)} edit a brush definition (strokes using it update) → {name}",
             has_doc,
             brush_options
         ),
@@ -249,7 +249,7 @@ fn ids_json(ids: &[NodeId]) -> Value {
     Value::Array(ids.iter().map(|i| Value::from(i.0)).collect())
 }
 
-fn roots(s: &Session, p: &Value) -> Result<Vec<NodeId>> {
+pub(crate) fn roots(s: &Session, p: &Value) -> Result<Vec<NodeId>> {
     match ids_param(p, "ids").or_else(|| id_param(p, "id").map(|i| vec![i])) {
         Some(mut v) => {
             // Explicit ids: only existing, non-layer objects, none inside another of them.
@@ -269,7 +269,7 @@ fn name_param<'a>(p: &'a Value, cmd: &str) -> Result<&'a str> {
 // ---------- brushes ----------
 
 /// Brushable nodes (paths and compound paths) under `ids`.
-fn brush_targets(d: &Document, ids: &[NodeId]) -> Vec<NodeId> {
+pub(crate) fn brush_targets(d: &Document, ids: &[NodeId]) -> Vec<NodeId> {
     let mut out = vec![];
     for id in ids {
         let Some(n) = d.node(*id) else { continue };
@@ -302,6 +302,27 @@ fn brush_selection_art(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "art": art.map(|n| serde_json::to_value(&n).unwrap_or_default()) }))
 }
 
+/// The stroke paint a brush gives paths without one: the current stroke colour, else black.
+pub(crate) fn stroke_paint(s: &Session) -> Paint {
+    if s.paint.stroke.is_none() { Paint::solid(Color::BLACK) } else { s.paint.stroke.clone() }
+}
+
+/// Paint paths `ids` of `d` with brush `name` (a path without a stroke takes `stroke`).
+pub(crate) fn apply_brush(d: &mut Document, ids: &[NodeId], name: &str, stroke: &Paint) {
+    for id in ids {
+        let Some(n) = d.node_mut(*id) else { continue };
+        if n.appearance.stroke().is_none_or(|st| st.paint.is_none()) {
+            n.appearance.set_stroke(stroke.clone());
+        }
+        if let Some(st) = n.appearance.stroke_mut() {
+            if st.width <= 0.0 {
+                st.width = 1.0;
+            }
+            st.brush = Some(name.to_string());
+        }
+    }
+}
+
 fn brush_apply(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "brush.apply";
     let name = name_param(p, C)?.to_string();
@@ -309,21 +330,10 @@ fn brush_apply(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(C, format!("no brush named `{name}`")));
     }
     let ids = brush_targets(&s.doc()?.doc, &roots(s, p)?);
-    let stroke = if s.paint.stroke.is_none() { Paint::solid(Color::BLACK) } else { s.paint.stroke.clone() };
+    let stroke = stroke_paint(s);
     s.edit("Apply Brush", |d, _| {
         d.unknown.insert(brush::CURRENT_KEY.into(), json!(name));
-        for id in &ids {
-            let Some(n) = d.node_mut(*id) else { continue };
-            if n.appearance.stroke().is_none_or(|st| st.paint.is_none()) {
-                n.appearance.set_stroke(stroke.clone());
-            }
-            if let Some(st) = n.appearance.stroke_mut() {
-                if st.width <= 0.0 {
-                    st.width = 1.0;
-                }
-                st.brush = Some(name.clone());
-            }
-        }
+        apply_brush(d, &ids, &name, &stroke);
         Ok(())
     })?;
     Ok(json!({ "ids": ids_json(&ids) }))
