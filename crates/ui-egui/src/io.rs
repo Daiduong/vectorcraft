@@ -393,17 +393,26 @@ pub fn saving_document() -> Option<u64> {
 /// One that failed or that the user cancelled leaves that document modified, so closing it asks
 /// first. One the user sent to `host_path` in the host's Save dialog (Save As) makes that path the
 /// document's file, so File › Save writes back there. A document that waited for the save to
-/// close closes now.
+/// close closes now. [`saves_settled`] takes several at once.
 pub fn save_settled(app: &mut VectorcraftApp, doc: Option<u64>, name: &str, saved: bool, host_path: Option<&str>) {
-    if let Some(st) = doc.and_then(|uid| app.session.document_mut(uid)) {
-        if !saved {
-            st.mark_unsaved();
-        } else if let Some(to) = host_path {
-            st.path = Some(to.to_string());
+    saves_settled(app, [(doc, name.to_string(), saved, host_path.map(str::to_string))]);
+}
+
+/// [`save_settled`] for the saves that finished since the last frame: (document, name, saved, host
+/// path). Every one is applied before any waiting close runs, so a save that failed later in the
+/// batch still keeps its document open.
+pub fn saves_settled(app: &mut VectorcraftApp, saves: impl IntoIterator<Item = (Option<u64>, String, bool, Option<String>)>) {
+    for (doc, name, saved, host_path) in saves {
+        if let Some(st) = doc.and_then(|uid| app.session.document_mut(uid)) {
+            if !saved {
+                st.mark_unsaved();
+            } else if let Some(to) = host_path {
+                st.path = Some(to);
+            }
         }
-    }
-    if !saved {
-        app.status(format!("Not saved: {}", fileio::file_name(name)));
+        if !saved {
+            app.status(format!("Not saved: {}", fileio::file_name(&name)));
+        }
     }
     crate::unsaved::save_settled(app);
 }

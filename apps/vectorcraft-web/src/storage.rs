@@ -42,7 +42,7 @@ use crate::web::Inbox;
 /// for it in the host's Save dialog.
 type Outcome = (bool, Option<String>);
 
-/// A finished save, for [`vectorcraft_ui_egui::io::save_settled`]: (document, name or host path,
+/// A finished save, for [`vectorcraft_ui_egui::io::saves_settled`]: (document, name or host path,
 /// saved, the host path the user chose).
 pub type Settled = (Option<u64>, String, bool, Option<String>);
 
@@ -72,7 +72,7 @@ fn enqueue(doc: Option<u64>, name: String, save: impl Future<Output = Outcome> +
     QUEUED.with(|q| q.borrow_mut().insert(id, (doc, name)));
 }
 
-/// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::save_settled`]. One
+/// The saves that finished since the last call, for [`vectorcraft_ui_egui::io::saves_settled`]. One
 /// that failed or that the user cancelled marks its document modified again.
 pub fn take_settled() -> Vec<Settled> {
     SAVES

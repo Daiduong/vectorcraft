@@ -370,8 +370,9 @@ impl eframe::App for WebShell {
             self.restart(&why);
         }
         let Some(app) = &mut self.app else { return };
-        for (doc, name, saved, host_path) in crate::storage::take_settled() {
-            vectorcraft_ui_egui::io::save_settled(app, doc, &name, saved, host_path.as_deref());
+        let settled = crate::storage::take_settled();
+        if !settled.is_empty() {
+            vectorcraft_ui_egui::io::saves_settled(app, settled);
         }
         app.tick(ctx);
         crate::api::poll_replies();

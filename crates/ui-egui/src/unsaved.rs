@@ -303,6 +303,32 @@ mod tests {
         assert_eq!(docs(&app), 0, "both closes ran once the host was done");
     }
 
+    /// Two saves of one document finish in the same frame, the first saved and the second not:
+    /// the document stays open and modified, though the first alone would have let it close.
+    #[test]
+    fn a_failed_save_later_in_the_batch_keeps_the_document_open() {
+        let busy = std::rc::Rc::new(std::cell::Cell::new(false));
+        let b = busy.clone();
+        let mut app = VectorcraftApp::new(
+            Session::new(),
+            crate::Services {
+                download: Some(Box::new(|_: &str, _: &[u8]| Ok(()))),
+                save_in_flight: Some(Box::new(move || b.get())),
+                ..Default::default()
+            },
+        );
+        let path = "cloud:home/art/Poster.vectorcraft";
+        new_doc(&mut app, true);
+        app.run("file.save", json!({ "path": path })).unwrap();
+        let uid = app.session.documents()[0].uid;
+        busy.set(true);
+        assert_eq!(close(&mut app, 0).unwrap(), json!({ "pending": "save" }));
+        busy.set(false);
+        io::saves_settled(&mut app, [(Some(uid), path.to_string(), true, None), (Some(uid), path.to_string(), false, None)]);
+        assert_eq!(docs(&app), 1);
+        assert!(app.session.documents()[0].is_dirty());
+    }
+
     #[test]
     fn close_all_and_quit_ask_once_per_modified_document() {
         let (mut app, written) = app();
