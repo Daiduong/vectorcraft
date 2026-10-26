@@ -986,6 +986,7 @@
 	Fill and Stroke	Preenchimento e Traçado
 	Fill new strokes	Preencher novos traçados
 	Alt key toggles to Smooth Tool	A tecla Alt alterna para a ferramenta Suavizar
+	Live curve fitting	Ajuste de curva em tempo real
 	Keep selected	Manter selecionado
 	Merge only with selection	Mesclar somente com a seleção
 	Consider Open Filled Paths as Closed	Tratar caminhos abertos preenchidos como fechados
@@ -2560,6 +2561,7 @@
 	Snap to Grid	Ajustar à Grade
 	Snap to Pixel	Ajustar ao Pixel
 	Precise Cursors	Cursores Precisos
+	Image Trace Preview	Visualização do Rastreamento de Imagem
 	Snap to Point	Ajustar ao Ponto
 	Snap to Unit	Ajustar à Unidade
 	Snapping Tolerance	Tolerância de Ajuste
@@ -5314,6 +5316,10 @@ mark-style	Japanese	Japonesas
 	Snap to Perpendicular	Ajustar à Perpendicular
 @msg	unknown snap option `{key}` (use {options})	opção de ajuste desconhecida `{key}` (use {options})
 	Gap Length:	Comprimento da Lacuna:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` requer `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` requer `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` requer `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	nenhum grupo de cores `{name}` no documento (veja swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	O modo Logotipo Plano traçou a imagem em {_1} × {_2} pixels, reduzida por média de {_3} × {_4}.
 	Artboard {n} of {total}	Mesa de Trabalho {n} de {total}
 	File {n} of {total}	Arquivo {n} de {total}
@@ -5374,6 +5380,12 @@ mark-style	Japanese	Japonesas
 	Shift:	Deslocamento:
 	Fresco…	Afresco…
 	Fresco	Afresco
+	Lock Artboards	Bloquear Mesas de Trabalho
+	Unlock Artboards	Desbloquear Mesas de Trabalho
+	Lock Selected	Bloquear selecionadas
+	Lock All Except Selected	Bloquear todas exceto as selecionadas
+	Lock All	Bloquear tudo
+	Unlock Selected	Desbloquear selecionadas
 	Effect Gallery…	Galeria de Efeitos…
 	Effect Gallery Dialog	Caixa de diálogo Galeria de Efeitos
 	Arc Segment Tool Options	Opções da Ferramenta Segmento de Arco
@@ -5463,6 +5475,8 @@ axis	Y Axis	Eixo Y
 	Rectangular Grid Tool Options	Opções da Ferramenta Grade Retangular
 	Polar Grid Tool Options	Opções da Ferramenta Grade Polar
 	Fill Line	Preencher linha
+@msg	no empty artboards to delete	não há mesas de trabalho vazias para excluir
 	Scale Presets	Predefinições de escala
 @msg	a {width}×{height} screenshot's byte count overflows	a contagem de bytes de uma captura {width}×{height} transborda
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	o {what} da janela ({points} pontos × {scale} DPI) não pode dimensionar uma captura
+	Live preview	Visualização ao vivo

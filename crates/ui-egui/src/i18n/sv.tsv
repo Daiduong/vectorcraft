@@ -1091,6 +1091,7 @@ font-technology	Variable	Variabla
 	Fill and Stroke	Fyllning och kontur
 	Fill new strokes	Fyll nya konturer
 	Alt key toggles to Smooth Tool	Alt-tangenten växlar till Utjämningsverktyg
+	Live curve fitting	Kurvanpassning medan du ritar
 	Fill Color	Fyllnadsfärg
 	Fill New Type Objects With Placeholder Text	Fyll nya textobjekt med platshållartext
 	Fill Rule	Fyllningsregel
@@ -3022,6 +3023,7 @@ font-technology	Variable	Variabla
 	Snap to Grid	Fäst mot rutnät
 	Snap to Pixel	Fäst mot pixel
 	Precise Cursors	Exakta markörer
+	Image Trace Preview	Förhandsgranskning av bildkalkering
 	Snap to Point	Fäst mot punkt
 	Snap to Unit	Fäst mot enhet
 	Snapping Tolerance	Fästtolerans
@@ -5420,6 +5422,10 @@ swatch	Yellow Green	Gulgrön
 	Snap to Perpendicular	Fäst mot vinkelrät
 @msg	unknown snap option `{key}` (use {options})	okänt fästalternativ `{key}` (använd {options})
 	Gap Length:	Lucklängd:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` kräver `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` kräver `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` kräver `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	ingen färggrupp `{name}` i dokumentet (se swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Läget Platt logotyp vektoriserade bilden vid {_1} × {_2} pixlar, nedskalad genom medelvärdesbildning från {_3} × {_4}.
 	Artboard {n} of {total}	Rityta {n} av {total}
 	File {n} of {total}	Fil {n} av {total}
@@ -5481,6 +5487,12 @@ font-script	Japanese	Japanska
 	Shift:	Förskjutning:
 	Fresco…	Fresk…
 	Fresco	Fresk
+	Lock Artboards	Lås ritytor
+	Unlock Artboards	Lås upp ritytor
+	Lock Selected	Lås markerade
+	Lock All Except Selected	Lås alla utom markerade
+	Lock All	Lås alla
+	Unlock Selected	Lås upp markerade
 	Effect Gallery…	Effektgalleri…
 	Effect Gallery Dialog	Dialogrutan Effektgalleri
 	Arc Segment Tool Options	Alternativ för bågsegmentsverktyget
@@ -5570,6 +5582,8 @@ axis	Y Axis	Y-axel
 	Rectangular Grid Tool Options	Alternativ för verktyget för rektangulärt rutnät
 	Polar Grid Tool Options	Alternativ för verktyget för polärt rutnät
 	Fill Line	Fyll linje
+@msg	no empty artboards to delete	inga tomma ritytor att radera
 	Scale Presets	Skalningsförval
 @msg	a {width}×{height} screenshot's byte count overflows	byteantalet för en skärmbild på {width}×{height} överstiger gränsen
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	fönstrets {what} ({points} punkter × {scale} DPI) kan inte bestämma en skärmbilds storlek
+	Live preview	Direkt förhandsgranskning

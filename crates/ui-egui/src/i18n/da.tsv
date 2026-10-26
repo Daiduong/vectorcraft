@@ -536,6 +536,7 @@
 	Save Grid as Preset…	Gem gitter som forudindstilling…
 	Snap to Pixel	Fastgør til pixel
 	Precise Cursors	Præcise markører
+	Image Trace Preview	Forhåndsvisning af billedsporing
 	Snap to Point	Fastgør til punkt
 	Snap to Glyph	Fastgør til tegn
 	New View…	Ny visning…
@@ -2105,6 +2106,7 @@ lighting	Light	Lys
 	Fidelity:	Præcision:
 	Fill new strokes	Udfyld nye konturer
 	Alt key toggles to Smooth Tool	Alt-tasten skifter til Udglatningsværktøj
+	Live curve fitting	Kurvetilpasning undervejs
 	The document has no colour swatches.	Dokumentet har ingen farveprøver.
 	Style Name:	Typografinavn:
 	Crop To	Beskær til
@@ -5416,6 +5418,12 @@ swatch	Bright Violet	Kraftig violet
 	Shift:	Forskydning:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Lock Artboards	Lås tegneflader
+	Unlock Artboards	Lås tegneflader op
+	Lock Selected	Lås markerede
+	Lock All Except Selected	Lås alle undtagen markerede
+	Lock All	Lås alle
+	Unlock Selected	Lås markerede op
 	Effect Gallery…	Effektgalleri…
 	Effect Gallery Dialog	Dialogboksen Effektgalleri
 	Arc Segment Tool Options	Indstillinger for buesegmentværktøj
@@ -5490,4 +5498,6 @@ axis	Y Axis	Y-akse
 	Rectangular Grid Tool Options	Indstillinger for rektangulært gitterværktøj
 	Polar Grid Tool Options	Indstillinger for polært gitterværktøj
 	Fill Line	Udfyld linje
+@msg	no empty artboards to delete	ingen tomme tegneflader at slette
 	Scale Presets	Skaleringsforudindstillinger
+	Live preview	Direkte forhåndsvisning

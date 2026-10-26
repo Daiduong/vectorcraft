@@ -160,5 +160,10 @@ real_name = "Angelo Bernardini"
 display_name = "Angelo Bernardini"
 sync_github_name = false
 
+[people.DCaioP]
+real_name = "Caio Pontes Magalhães"
+display_name = "Caio Pontes"
+sync_github_name = false
+
 [people.abdallah-shehawey]
 sync_github_name = true

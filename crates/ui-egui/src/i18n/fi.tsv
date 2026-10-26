@@ -574,6 +574,7 @@
 	Save Grid as Preset…	Tallenna ruudukko esiasetukseksi…
 	Snap to Pixel	Kohdista pikseliin
 	Precise Cursors	Tarkat osoittimet
+	Image Trace Preview	Kuvan jäljityksen esikatselu
 	Snap to Point	Kohdista pisteeseen
 	Snap to Glyph	Kohdista merkkiin
 	New View…	Uusi näkymä…
@@ -2252,6 +2253,7 @@ lighting	Light	Valo
 	Fidelity:	Tarkkuus:
 	Fill new strokes	Täytä uudet viivat
 	Alt key toggles to Smooth Tool	Alt-näppäin vaihtaa Tasoitustyökaluun
+	Live curve fitting	Käyrän sovitus piirrettäessä
 	The document has no colour swatches.	Asiakirjassa ei ole värimalleja.
 	Style Name:	Tyylin nimi:
 	Crop To	Rajaa kohteeseen
@@ -5361,6 +5363,10 @@ mark-style	Japanese	Japanilainen
 	Snap to Perpendicular	Kohdista kohtisuoraan
 @msg	unknown snap option `{key}` (use {options})	tuntematon tartuntavalinta `{key}` (käytä: {options})
 	Gap Length:	Aukon pituus:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` edellyttää arvoa `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` edellyttää arvoa `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` edellyttää arvoa `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	asiakirjassa ei ole väriryhmää `{name}` (ks. swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	Tasainen logo -tila jäljitti kuvan kokoon {_1} × {_2} kuvapistettä keskiarvoistamalla pienennettynä koosta {_3} × {_4}.
 	Artboard {n} of {total}	Piirtoalusta {n}/{total}
 	File {n} of {total}	Tiedosto {n}/{total}
@@ -5488,6 +5494,12 @@ swatch	Bright Violet	Kirkas violetti
 	Shift:	Siirtymä:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Lock Artboards	Lukitse piirtoalustat
+	Unlock Artboards	Avaa piirtoalustojen lukitus
+	Lock Selected	Lukitse valitut
+	Lock All Except Selected	Lukitse kaikki paitsi valitut
+	Lock All	Lukitse kaikki
+	Unlock Selected	Avaa valittujen lukitus
 	Effect Gallery…	Tehostegalleria…
 	Effect Gallery Dialog	Tehostegalleria-valintaikkuna
 	Arc Segment Tool Options	Kaarisegmenttityökalun asetukset
@@ -5577,6 +5589,8 @@ axis	Y Axis	Y-akseli
 	Rectangular Grid Tool Options	Suorakulmaisen ruudukon työkalun asetukset
 	Polar Grid Tool Options	Napakoordinaattiruudukon työkalun asetukset
 	Fill Line	Täytä viiva
+@msg	no empty artboards to delete	ei poistettavia tyhjiä piirtoalustoja
 	Scale Presets	Skaalauksen esiasetukset
 @msg	a {width}×{height} screenshot's byte count overflows	{width}×{height} kuvakaappauksen tavumäärä ylittää rajan
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	ikkunan {what} ({points} pistettä × {scale} DPI) ei voi määrittää kuvakaappauksen kokoa
+	Live preview	Reaaliaikainen esikatselu
