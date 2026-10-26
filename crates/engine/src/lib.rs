@@ -2919,6 +2919,8 @@ mod tests_trap;
 #[cfg(test)]
 mod tests_typearea;
 #[cfg(test)]
+mod tests_typeedge;
+#[cfg(test)]
 mod tests_typescale;
 #[cfg(test)]
 mod tests_units;
