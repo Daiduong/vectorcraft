@@ -29,6 +29,7 @@ pub mod libraries;
 pub mod library_panel;
 pub mod links;
 pub mod magic_wand;
+pub(crate) mod memo;
 pub mod navigator;
 pub mod opentype;
 pub mod paragraph;
@@ -464,6 +465,7 @@ pub(crate) fn live_run(app: &mut VectorcraftApp, label: &str, cmd: &str, params:
 pub(crate) fn pstate<T: Clone + Default + Send + Sync + 'static>(ctx: &egui::Context, key: &str) -> T {
     ctx.data(|d| d.get_temp::<T>(egui::Id::unique(("panel-state", key)))).unwrap_or_default()
 }
+/// Store per-panel UI state in egui temp memory under the `panel-state` namespace.
 pub(crate) fn set_pstate<T: Clone + Send + Sync + 'static>(ctx: &egui::Context, key: &str, v: T) {
     ctx.data_mut(|d| d.insert_temp(egui::Id::unique(("panel-state", key)), v));
 }
@@ -602,6 +604,8 @@ mod tests_appearance;
 mod tests_asset_export;
 #[cfg(test)]
 mod tests_blend;
+#[cfg(test)]
+mod tests_brush_libraries;
 #[cfg(test)]
 mod tests_constrain;
 #[cfg(test)]

@@ -16,12 +16,15 @@ use crate::{icons, scrub};
 struct HashOnly<T>(T);
 
 impl<T: std::hash::Hash> std::hash::Hash for HashOnly<T> {
+    /// Hash only the wrapped id salt, deliberately omitting the debug-only identity that egui 0.37's
+    /// `AsIdSalt` requires.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
 }
 
 impl<T> std::fmt::Debug for HashOnly<T> {
+    /// Format any `HashOnly` salt as the fixed text `widget id` so ids do not expose their value.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("widget id")
     }
@@ -246,6 +249,8 @@ struct NextLabel {
     next_auto_id: egui::Id,
 }
 
+/// Record a label's widget id, viewport, pass, position and next auto id so only the immediately
+/// following field can take the label.
 fn remember_next_label(ui: &Ui, id: egui::Id) {
     let label = NextLabel {
         id,
@@ -338,6 +343,28 @@ pub(crate) fn typed_unit(ctx: &egui::Context, unit: Unit) -> Unit {
     if bare_points && unit == Unit::Picas { Unit::Points } else { unit }
 }
 
+/// `text` typed in a numeric field, with a decimal comma read as a point: `0,1 mm` is `0.1 mm`
+/// (#3837). Text with a point keeps its commas, so `1,000.5` is still refused rather than read
+/// with two decimal separators, and so does a number that reads as thousands ([`thousands`]).
+fn decimal_point(text: &str) -> std::borrow::Cow<'_, str> {
+    if text.contains(',') && !text.contains('.') && !thousands(text) { text.replace(',', ".").into() } else { text.into() }
+}
+
+/// Is `text` a number written with a thousands comma, as `1,000` or `12,500 mm`: one to three
+/// digits (not a lone 0), a comma, exactly three digits, then at most a unit? Read as a decimal it
+/// would be a thousand times too small, so the field refuses it instead (`0,125` and `1,25` are
+/// decimals).
+fn thousands(text: &str) -> bool {
+    let number = text.trim().trim_start_matches('-');
+    let Some((whole, rest)) = number.split_once(',') else { return false };
+    let (part, unit) = rest.split_at(rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len()));
+    (1..=3).contains(&whole.len())
+        && whole.bytes().all(|b| b.is_ascii_digit())
+        && !whole.starts_with('0')
+        && part.len() == 3
+        && unit.trim().chars().all(char::is_alphabetic)
+}
+
 /// A recessed numeric field showing `value` (points) in `unit`. Returns the new value (points)
 /// when the user commits (Enter / focus loss / Shift+Enter, which keeps the focus outside dialogs).
 /// Supports unit suffixes and arithmetic; a number without a unit is in `unit` ([`typed_unit`]: in
@@ -382,14 +409,15 @@ fn unit_field(
     let (mut buf, commit, resp, rect) = recessed_text(ui, id, &shown, width, 1, label, name);
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step in the field's unit; a drag on its label scrubs it.
-    let read = typed_unit(ui.ctx(), unit);
+    let typed = typed_unit(ui.ctx(), unit);
+    let read = |b: &str| typed.parse(&decimal_point(b));
     let bounds = unit.from_pt(*bounds.start())..=unit.from_pt(*bounds.end());
-    let stepped = step_value(ui, &resp, &mut buf, &bounds, |b| Some(unit.from_pt(read.parse(b)?)), |v| unit.format(unit.to_pt(v)));
+    let stepped = step_value(ui, &resp, &mut buf, &bounds, (|b: &str| Some(unit.from_pt(read(b)?)), |v| unit.format(unit.to_pt(v))), None);
     let scrubbed = scrub::field(ui, id, rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS, &bounds);
     let commit = commit && buf != shown;
     ui.data_mut(|d| d.insert_temp(id, buf.clone()));
     if commit {
-        read.parse(&buf).or_else(|| if share_of_value { share_of(&buf, value?) } else { None })
+        read(&buf).or_else(|| if share_of_value { share_of(&decimal_point(&buf), value?) } else { None })
     } else {
         stepped.or(scrubbed).map(|v| unit.to_pt(v))
     }
@@ -443,8 +471,8 @@ fn step_value(
     resp: &Response,
     buf: &mut String,
     bounds: &RangeInclusive<f64>,
-    read: impl Fn(&str) -> Option<f64>,
-    show: impl Fn(f64) -> String,
+    (read, show): (impl Fn(&str) -> Option<f64>, impl Fn(f64) -> String),
+    step: Option<fn(f64, f64) -> f64>,
 ) -> Option<f64> {
     // Memory focus, as the field's highlight and its typing use: `Response::has_focus` also needs the
     // window to report keyboard focus.
@@ -498,7 +526,12 @@ fn step_value(
     }
     let mut v = read(buf)?;
     for (mods, size, n) in steps {
-        v = if mods == egui::Modifiers::SHIFT { v + size * n } else { step_to_multiple(v, size, n) };
+        v = match step {
+            // The field's own steps: ten at once with Shift, one with or without Ctrl/Cmd.
+            Some(step) => step(v, if mods == egui::Modifiers::SHIFT { 10.0 * n } else { n }),
+            None if mods == egui::Modifiers::SHIFT => v + size * n,
+            None => step_to_multiple(v, size, n),
+        };
         // Each step stops at the bounds, so a step back in the same frame starts from there.
         v = within(v, bounds);
     }
@@ -861,7 +894,27 @@ pub fn range_field_named(
     let places = decimals.min(6) as i32;
     let value = value.into().map(|v| within(v, &range));
     let label = take_previous_label(ui);
-    bounded_field(ui, id, label, name, value, suffix, decimals, width, &range).map(|v| within(round_to(v, places), &range))
+    bounded_field(ui, id, label, name, value, suffix, decimals, width, &range, None).map(|v| within(round_to(v, places), &range))
+}
+
+/// [`range_field`] whose ↑/↓ and wheel take `step`'s steps instead of whole numbers (see
+/// [`SliderValue::step`]), for a number whose useful values are fractions, such as the Pencil's
+/// Fidelity.
+#[allow(clippy::too_many_arguments)]
+pub fn range_field_stepped(
+    ui: &mut Ui,
+    id: impl std::hash::Hash,
+    value: impl Into<Option<f64>>,
+    range: RangeInclusive<f64>,
+    suffix: &str,
+    decimals: usize,
+    width: f32,
+    step: fn(f64, f64) -> f64,
+) -> Option<f64> {
+    let places = decimals.min(6) as i32;
+    let value = value.into().map(|v| within(v, &range));
+    let label = take_previous_label(ui);
+    bounded_field(ui, id, label, None, value, suffix, decimals, width, &range, Some(step)).map(|v| within(round_to(v, places), &range))
 }
 
 /// [`plain_field`] for a value the selected objects may not share: `None` shows a blank field.
@@ -880,10 +933,11 @@ pub fn mixed_field_named(
     width: f32,
 ) -> Option<f64> {
     let label = take_previous_label(ui);
-    bounded_field(ui, id, label, name, value, suffix, decimals, width, &ANY)
+    bounded_field(ui, id, label, name, value, suffix, decimals, width, &ANY, None)
 }
 
-/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`.
+/// [`mixed_field`] whose ↑/↓, wheel and scrub stop at `bounds`; ↑/↓ and the wheel take `step`'s steps
+/// when it is given (see [`SliderValue::step`]).
 #[allow(clippy::too_many_arguments)]
 fn bounded_field(
     ui: &mut Ui,
@@ -895,12 +949,14 @@ fn bounded_field(
     decimals: usize,
     width: f32,
     bounds: &RangeInclusive<f64>,
+    step: Option<fn(f64, f64) -> f64>,
 ) -> Option<f64> {
     let id = id_with(ui.scope_id(), id);
     let show = |value: f64| field_text(value, suffix, decimals);
     // The suffix (and %, °) may follow any operand: `45*2°`, `50% / 2`.
     let read = |buf: &str| {
         let suffix = suffix.trim();
+        let buf = decimal_point(buf);
         let bare = if suffix.is_empty() { buf.to_string() } else { buf.replace(suffix, "") };
         vectorcraft_doc::parse_number(&bare.replace(['%', '°'], ""))
     };
@@ -911,7 +967,7 @@ fn bounded_field(
     // ↑/↓ and the wheel step at the field's precision (a count ignores Ctrl/Cmd's tenth); a drag on
     // its label scrubs it.
     let decimals = decimals.min(6) as i32;
-    let stepped = step_value(ui, &resp, &mut buf, bounds, read, show).map(|v| round_to(v, decimals));
+    let stepped = step_value(ui, &resp, &mut buf, bounds, (read, show), step).map(|v| round_to(v, decimals));
     let scrubbed = scrub::field(ui, id, rect, &buf, value, decimals, bounds);
     if commit && buf != shown { read(&buf) } else { stepped.or(scrubbed).filter(|&v| Some(v) != value) }
 }
@@ -1923,7 +1979,7 @@ pub fn spin_plain_named(
     let value = value.into();
     let fmt = |v: f64| format!("{v}{suffix}");
     spin_generic(ui, label, value, None, width, step, min, presets, &fmt, &mut |ui, fw, label| {
-        bounded_field(ui, id, label, name, value, suffix, decimals, fw, &(min..=f64::INFINITY))
+        bounded_field(ui, id, label, name, value, suffix, decimals, fw, &(min..=f64::INFINITY), None)
     })
     .and_then(SpinPick::value)
 }
@@ -2040,31 +2096,49 @@ pub fn color_slider_named(
 
 /// The value a slider gives screen readers: the number the field beside it shows, the range of the
 /// slider's rail and the field's text.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SliderValue {
     pub value: f64,
     pub range: std::ops::RangeInclusive<f64>,
     /// The field's text, such as "50%"; `None` gives the number alone.
     pub text: Option<String>,
+    /// How the keys and screen readers step the number ([`color_slider_stepped`]): the number `n`
+    /// steps from `value` (±1 for an arrow, ±10 with Shift or Page Up/Down). `None` steps to whole
+    /// numbers.
+    pub step: Option<fn(f64, f64) -> f64>,
+}
+
+/// Two values are the same when they show the same number, range and text, whatever their keys' steps
+/// (function pointers don't compare reliably).
+impl PartialEq for SliderValue {
+    fn eq(&self, other: &Self) -> bool {
+        (self.value, &self.range, &self.text) == (other.value, &other.range, &other.text)
+    }
 }
 
 impl SliderValue {
     /// `value` on a rail over `range`, without a text.
     pub fn number(value: f64, range: std::ops::RangeInclusive<f64>) -> Self {
-        Self { value, range, text: None }
+        Self { value, range, text: None, step: None }
     }
 
     /// `value` on a rail over `range` as [`plain_field`] shows it with `suffix` and at most
     /// `decimals` places: the number it shows (`value` rounded) and its text.
     pub fn field(value: f64, range: std::ops::RangeInclusive<f64>, suffix: &str, decimals: usize) -> Self {
         let number = field_text(value, "", decimals);
-        Self { value: number.parse().unwrap_or(value), range, text: Some(format!("{number}{suffix}")) }
+        Self { value: number.parse().unwrap_or(value), range, text: Some(format!("{number}{suffix}")), step: None }
     }
 
     /// `value` on a rail over `range`, with `text`, for a field that writes its own text (a length
     /// in the document's unit, an egui `DragValue`).
     pub fn text(value: f64, range: std::ops::RangeInclusive<f64>, text: String) -> Self {
-        Self { value, range, text: Some(text) }
+        Self { value, range, text: Some(text), step: None }
+    }
+
+    /// This value, stepped by the keys with `step` instead of to whole numbers (see
+    /// [`SliderValue::step`]), for a rail whose useful numbers are fractions.
+    pub fn with_step(self, step: fn(f64, f64) -> f64) -> Self {
+        Self { step: Some(step), ..self }
     }
 }
 
@@ -2104,7 +2178,8 @@ pub fn color_slider_valued(
 }
 
 /// [`color_slider_valued`] for a dialog's rail beside a number field, which also responds to the
-/// keyboard. A click or a drag gives the rail the keyboard focus, which an outline around it shows.
+/// keyboard. A click or a drag gives the rail the keyboard focus; an outline around it shows the
+/// focus once a key has stepped it, or when the focus came from the keyboard (Tab).
 /// While it has the focus, → and ↑ raise the number `shown` holds to the next whole number and ←
 /// and ↓ lower it to the next whole number, Shift with an arrow, Page Up and Page Down add or take
 /// ten, and Home and End set the start and the end of `shown`'s range. Screen readers' increment
@@ -2124,13 +2199,16 @@ pub fn color_slider_stepped(
 ) -> (Option<f32>, Live, Option<f64>) {
     let id = id_with(ui.scope_id(), id);
     let (resp, picked, phase) = color_rail(ui, id, name, shown.clone(), value, width, track);
+    // Focus a click or a drag gave shows no outline until a key steps the rail: the outline tells
+    // a keyboard user where the focus is, and after a drag it only framed the rail.
+    let by_pointer = id.with("focused-by-pointer");
     if resp.drag_started() || resp.clicked() {
         resp.request_focus();
+        ui.data_mut(|d| d.insert_temp(by_pointer, true));
     }
     let focused = ui.memory(|m| m.has_focus(id));
-    if focused {
-        let t = Tokens::get(ui.ctx());
-        ui.painter().rect_stroke(resp.rect, 2.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+    if !focused {
+        ui.data_mut(|d| d.remove_temp::<bool>(by_pointer));
     }
     let stepped = shown.filter(|_| ui.is_enabled()).and_then(|s| {
         ui.ctx().accesskit_node_builder(id, |node| {
@@ -2140,6 +2218,13 @@ pub fn color_slider_stepped(
         });
         rail_step(ui, id, focused, &s)
     });
+    if stepped.is_some() {
+        ui.data_mut(|d| d.remove_temp::<bool>(by_pointer));
+    }
+    if focused && !ui.data(|d| d.get_temp::<bool>(by_pointer)).unwrap_or(false) {
+        let t = Tokens::get(ui.ctx());
+        ui.painter().rect_stroke(resp.rect, 2.0, Stroke::new(1.0, t.accent), StrokeKind::Inside);
+    }
     (picked, phase, stepped.filter(|_| picked.is_none()))
 }
 
@@ -2154,6 +2239,12 @@ fn rail_step(ui: &Ui, id: egui::Id, focused: bool, s: &SliderValue) -> Option<f6
     }
     let from = s.value.clamp(lo, hi);
     let mut v = from;
+    // `n` steps from `v`: the rail's own steps, or to whole numbers (ten at a time with Shift).
+    let by = |v: f64, n: f64| match s.step {
+        Some(step) => step(v, n),
+        None if n.abs() >= 10.0 => v + n,
+        None => step_to_multiple(v, 1.0, n),
+    };
     // Home or End: an end of the range, which also replaces a number past it.
     let mut end = false;
     if focused {
@@ -2173,12 +2264,12 @@ fn rail_step(ui: &Ui, id: egui::Id, focused: bool, s: &SliderValue) -> Option<f6
                         v = if *key == Key::Home { lo } else { hi };
                         end = true;
                     }
-                    Key::PageUp | Key::PageDown if modifiers.is_none() => v = (v + 10.0 * n).clamp(lo, hi),
+                    Key::PageUp | Key::PageDown if modifiers.is_none() => v = by(v, 10.0 * n).clamp(lo, hi),
                     Key::ArrowRight | Key::ArrowUp | Key::ArrowLeft | Key::ArrowDown if modifiers.shift_only() => {
-                        v = (v + 10.0 * n).clamp(lo, hi);
+                        v = by(v, 10.0 * n).clamp(lo, hi);
                     }
                     Key::ArrowRight | Key::ArrowUp | Key::ArrowLeft | Key::ArrowDown if modifiers.is_none() => {
-                        v = step_to_multiple(v, 1.0, n).clamp(lo, hi);
+                        v = by(v, n).clamp(lo, hi);
                         arrows = true;
                     }
                     _ => return true,
@@ -2192,7 +2283,7 @@ fn rail_step(ui: &Ui, id: egui::Id, focused: bool, s: &SliderValue) -> Option<f6
     }
     ui.input(|i| {
         let n = i.num_accesskit_action_requests(id, Action::Increment) as f64 - i.num_accesskit_action_requests(id, Action::Decrement) as f64;
-        v = step_to_multiple(v, 1.0, n).clamp(lo, hi);
+        v = by(v, n).clamp(lo, hi);
     });
     (v != from || (end && v != s.value)).then_some(round_to(v, STEP_DECIMALS).clamp(lo, hi))
 }
@@ -2522,7 +2613,14 @@ pub fn opt_field_named(ui: &mut Ui, id: impl std::hash::Hash, name: Option<&str>
     select_all_on_focus(ui, &resp, &buf);
     // ↑/↓ and the wheel step a value (an empty field stays empty); a drag on its label scrubs it.
     let lengths = 0.0..=f64::INFINITY;
-    let stepped = step_value(ui, &resp, &mut buf, &lengths, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)));
+    let stepped = step_value(
+        ui,
+        &resp,
+        &mut buf,
+        &lengths,
+        (|b: &str| Some(unit.from_pt(unit.parse(&decimal_point(b))?)), |v| unit.number(unit.to_pt(v))),
+        None,
+    );
     let scrubbed = scrub::field(ui, id, framed.response.rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS, &lengths);
     let focused = ui.memory(|m| m.has_focus(id));
     ui.data_mut(|d| {
@@ -2531,7 +2629,7 @@ pub fn opt_field_named(ui: &mut Ui, id: impl std::hash::Hash, name: Option<&str>
     });
     if (resp.lost_focus() || kept) && buf != shown {
         let s = buf.trim();
-        if s.is_empty() { Some(None) } else { typed_unit(ui.ctx(), unit).parse(s).map(Some) }
+        if s.is_empty() { Some(None) } else { typed_unit(ui.ctx(), unit).parse(&decimal_point(s)).map(Some) }
     } else {
         stepped.or(scrubbed).map(|v| Some(unit.to_pt(v)))
     }
@@ -2569,6 +2667,9 @@ pub enum PanelDrag {
     /// A Brushes panel brush (`def`: its definition, for the chip at the pointer): the path it is
     /// dropped on takes it (`brush.apply`).
     Brush { name: String, def: serde_json::Value },
+    /// A brush of a brush library panel (`name`: its name in `library`): the path it is dropped on
+    /// takes it (`brush.addFromLibrary` with `apply`), and the Brushes panel adds it.
+    LibraryBrush { library: String, name: String },
     /// A Libraries panel graphic (`item`: its id in `library`): the canvas places a copy centred
     /// where it is dropped (`library.use`); the panel moves it to where it is dropped.
     LibraryGraphic { library: String, item: String },
@@ -3158,6 +3259,33 @@ mod step_to_multiple_tests {
 }
 
 #[cfg(test)]
+mod decimal_point_tests {
+    use super::*;
+
+    /// A decimal comma reads as a point, in a length, with arithmetic and in a percentage; text
+    /// with a point keeps its commas and is refused as before, and so does a thousands comma
+    /// (#3837).
+    #[test]
+    fn a_decimal_comma_reads_as_a_point() {
+        let mm = |s: &str| Unit::Millimeters.parse(&decimal_point(s)).map(|pt| Unit::Millimeters.from_pt(pt));
+        for (text, want) in [("0,1", 0.1), ("0,1 mm", 0.1), ("0,1mm", 0.1), ("-0,5", -0.5), ("1,5+0,25", 1.75), ("0.1", 0.1)] {
+            let got = mm(text).unwrap_or(f64::NAN);
+            assert!((got - want).abs() < 1e-9, "{text}: {got}");
+        }
+        assert_eq!(mm("1,000.5"), None, "a point and a comma");
+        assert_eq!(mm("1,2,3"), None, "two commas");
+        for thousand in ["1,000", "12,500 mm", "-1,000", "999,999mm"] {
+            assert_eq!(mm(thousand), None, "{thousand} reads as thousands: refused, not a thousand times too small");
+        }
+        for (text, want) in [("0,125", 0.125), ("1,25", 1.25), ("1,0000", 1.0), ("1,500+2", 3.5)] {
+            let got = mm(text).unwrap_or(f64::NAN);
+            assert!((got - want).abs() < 1e-9, "{text} is a decimal: {got}");
+        }
+        assert_eq!(share_of(&decimal_point("12,5%"), 200.0), Some(25.0));
+    }
+}
+
+#[cfg(test)]
 mod menu_room_tests {
     use super::*;
 
@@ -3455,6 +3583,40 @@ pub(crate) mod look_tests {
         }
     }
 
+    /// A dialog slider that a click focused shows no focus outline; once an arrow key steps it, the
+    /// outline shows, so a keyboard user sees where the focus is.
+    #[test]
+    fn a_slider_focused_by_a_click_shows_its_outline_only_after_a_key() {
+        let ctx = themed(Default::default());
+        let t = Tokens::get(&ctx);
+        let rail = std::cell::Cell::new(Rect::NOTHING);
+        let mut add = |ui: &mut Ui| {
+            let shown = SliderValue::number(5.0, 0.0..=10.0);
+            let (_, _, _) = color_slider_stepped(ui, "outline-test", "Test", Some(shown), 0.5, 180.0, &|_| Color32::GRAY);
+            rail.set(ui.min_rect());
+        };
+        // An outline: a stroked rect in the accent around the rail.
+        let outlined = |shapes: &[egui::Shape]| {
+            shapes
+                .iter()
+                .any(|s| matches!(s, egui::Shape::Rect(r) if r.stroke.color == t.accent && r.stroke.width > 0.0 && r.fill == Color32::TRANSPARENT))
+        };
+        frame(&ctx, 0.0, vec![], &mut add);
+        let at = rail.get().center();
+        let button =
+            |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::NONE };
+        frame(&ctx, 0.1, vec![egui::Event::PointerMoved(at), button(true)], &mut add);
+        frame(&ctx, 0.2, vec![button(false)], &mut add);
+        let shapes = frame(&ctx, 0.3, vec![], &mut add);
+        assert!(ctx.memory(|m| m.focused().is_some()), "the click focused the rail");
+        assert!(!outlined(&shapes), "no outline after a click");
+        let arrow =
+            |pressed| egui::Event::Key { key: egui::Key::ArrowRight, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::NONE };
+        frame(&ctx, 0.4, vec![arrow(true), arrow(false)], &mut add);
+        let shapes = frame(&ctx, 0.5, vec![], &mut add);
+        assert!(outlined(&shapes), "an arrow key shows the outline");
+    }
+
     // Regression test for #2083: the rows of the panels' menus didn't light up under the pointer, as
     // the menu bar's items do.
     #[test]
@@ -3483,6 +3645,7 @@ pub(crate) mod look_tests {
         assert!(lit(&hovered, row), "the row under the pointer is lit: {row:?}");
     }
 
+    /// Each painted row label names its own numeric field rather than the field's internal salt.
     #[test]
     fn a_label_rows_input_is_named_by_the_row_label() {
         use egui_kittest::kittest::Queryable;
@@ -3503,6 +3666,7 @@ pub(crate) mod look_tests {
         assert!(h.query_by_role_and_label(egui::accesskit::Role::TextInput, "plugin-angle").is_none(), "no internal widget id");
     }
 
+    /// A label followed by a checkbox or other widget does not name a later field.
     #[test]
     fn a_label_does_not_name_a_field_after_another_widget() {
         use egui_kittest::kittest::Queryable;
@@ -3559,6 +3723,7 @@ pub(crate) mod look_tests {
         }
     }
 
+    /// The Enter and focus guard's reconstructed id equals the id egui gives the ComboBox button.
     #[test]
     fn a_combos_keyboard_guard_reads_the_combos_own_button_id() {
         crate::i18n::set_current(crate::i18n::Lang::EN);
