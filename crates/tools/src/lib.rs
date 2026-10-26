@@ -30,6 +30,7 @@ pub mod pen;
 pub mod pie;
 pub mod place;
 pub mod printtiling;
+pub mod repeat_grid;
 pub mod rulerguide;
 pub mod select;
 pub mod settings;
@@ -392,6 +393,10 @@ impl ToolContext<'_> {
     pub fn size_label(&self, w: f64, h: f64) -> String {
         format!("W: {}\nH: {}", self.len(w), self.len(h))
     }
+    /// Star tool drag: outer (R1) and inner (R2) radii from the centre to the pointer.
+    pub fn star_radii_label(&self, outer: f64, inner: f64) -> String {
+        format!("R1: {}\nR2: {}", self.len(outer), self.len(inner))
+    }
     /// A move label: `dX: …` over `dY: …`.
     pub fn offset_label(&self, dx: f64, dy: f64) -> String {
         format!("dX: {}\ndY: {}", self.len(dx), self.len(dy))
@@ -574,6 +579,9 @@ pub enum Cursor {
     MagicWand,
     /// The Pencil tool.
     Pencil,
+    /// The Pencil tool before a press that draws a new freehand path: the pointer is not over a
+    /// selected path that the press would continue or redraw. A crosshair with a small star.
+    PencilNew,
     /// The Pencil tool with Alt pressed after the drag starts and Alt key toggles to Smooth Tool off:
     /// releasing the mouse button with Alt still held closes the path. A drag started with Shift or
     /// Alt held draws an open straight line instead. Also while a freehand stroke is drawn back near
@@ -702,6 +710,7 @@ impl Cursor {
             | Cursor::Lasso
             | Cursor::MagicWand
             | Cursor::Pencil
+            | Cursor::PencilNew
             | Cursor::PencilClose
             | Cursor::PencilStraight
             | Cursor::PencilContinue
@@ -733,7 +742,7 @@ impl Cursor {
     }
 
     /// The cursor this one borrows until it's drawn: the generic crosshair for the
-    /// tools, the I-beam for vertical type and loaded text, the Pen's add cursor for the Mesh tool and Puppet
+    /// tools, the I-beam for vertical type, the Pen's add cursor for the Mesh tool and Puppet
     /// Warp, not-allowed for the Scissors away from a path. `None` for a cursor with a look of
     /// its own.
     pub fn stand_in(self) -> Option<Self> {
@@ -762,7 +771,7 @@ impl Cursor {
             | Cursor::SymbolScreener
             | Cursor::SymbolStyler
             | Cursor::Scissors => Some(Cursor::Crosshair),
-            Cursor::TypeVertical | Cursor::LoadedText => Some(Cursor::Text),
+            Cursor::TypeVertical => Some(Cursor::Text),
             Cursor::MeshAdd | Cursor::PuppetPin => Some(Cursor::PenAdd),
             Cursor::ScissorsNotAllowed => Some(Cursor::NotAllowed),
             _ => None,
@@ -790,6 +799,7 @@ pub enum ImeSurrounding {
 }
 
 impl Default for ImeSurrounding {
+    /// Report surrounding text as unavailable because no document is active.
     fn default() -> Self {
         Self::Unavailable("no document is active")
     }
@@ -914,6 +924,14 @@ pub trait Tool: Send {
     fn wants_ticks(&self) -> bool {
         false
     }
+    /// Does the tool build a stroke from the drag's samples (the Pencil and the other freehand
+    /// tools)? The host then hands it every position the pointer passed between two frames, not
+    /// only the last, so a fast stroke keeps its curve. Every other tool gets one drag a frame, so
+    /// one whose drag preview is costly (moving a large selection, Free Distort, the Width tool)
+    /// doesn't redo it for each sample.
+    fn wants_samples(&self) -> bool {
+        false
+    }
     /// Is the tool waiting for work it runs on another thread (the planar map of a large selection
     /// for the Shape Builder and the Live Paint Bucket)? It highlights no region under the pointer
     /// until the work is done. While this holds, the desktop app calls [`Tool::poll`] each frame,
@@ -924,6 +942,12 @@ pub trait Tool: Send {
     /// Checks on the work [`Tool::waiting`] reports, waiting for it to finish with `wait`. Once it
     /// is done, the tool shows the highlight under the pointer where it last moved.
     fn poll(&mut self, _cx: &ToolContext, _wait: bool) {}
+    /// The Shape Builder's planar map of the selection, with the outline edges, and the gap it
+    /// closes, when the tool has one. `shapeBuilder.merge` uses it in place of a map of its own
+    /// when the map's inputs are the merge's inputs.
+    fn shape_builder_map(&self) -> Option<(std::sync::Arc<builder::BuilderMap>, f64)> {
+        None
+    }
 }
 
 /// Create a tool by id. Unknown or not-yet-implemented tools fall back to a no-op tool that keeps the id.
@@ -1188,7 +1212,6 @@ mod cursor_tests {
         for (id, c) in [
             ("lasso", Cursor::Lasso),
             ("magicWand", Cursor::MagicWand),
-            ("pencil", Cursor::Pencil),
             ("paintbrush", Cursor::Paintbrush),
             ("blobBrush", Cursor::BlobBrush),
             ("eraser", Cursor::Eraser),
@@ -1214,6 +1237,13 @@ mod cursor_tests {
             assert_eq!(c.precise(), Cursor::Crosshair, "{id}");
             assert_eq!(c.stand_in(), Some(if id == "mesh" { Cursor::PenAdd } else { Cursor::Crosshair }), "{id}");
         }
+        // Away from a selected path the Pencil shows its new-path cursor, drawn with a star; its
+        // own cursor, for drawing and for a selected path under the pointer, borrows the crosshair.
+        assert_eq!(cursor_at("pencil", &d, away), Cursor::PencilNew);
+        assert_eq!(Cursor::PencilNew.precise(), Cursor::Crosshair);
+        assert_eq!(Cursor::PencilNew.stand_in(), None);
+        assert_eq!(Cursor::Pencil.precise(), Cursor::Crosshair);
+        assert_eq!(Cursor::Pencil.stand_in(), Some(Cursor::Crosshair));
     }
 
     #[test]

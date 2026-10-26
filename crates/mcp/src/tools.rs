@@ -64,7 +64,7 @@ fn with_draw_options(mut props: Value) -> Value {
         "dash": {"description": "Dash and gap lengths in pt ([d, g, …]), or null for a solid stroke (stroke.set `dash`)", "anyOf": [{"type": "array", "items": {"type": "number"}}, {"type": "null"}]},
         "cap": {"type": "string", "enum": ["butt", "round", "square", "projecting"], "description": "Stroke cap"},
         "join": {"type": "string", "enum": ["miter", "round", "bevel"], "description": "Stroke corner join"},
-        "opacity": {"type": "number", "minimum": 0, "maximum": 100, "description": "Opacity in % (object.setProps `opacity`)"},
+        "opacity": {"type": "number", "minimum": 0, "maximum": 100, "description": "Opacity in % (object.setProps `opacity`); doc_inspect reads it back as `opacityPct` (its `opacity` is a 0–1 fraction)"},
         "name": string("Name in the Layers panel"),
         "effects": {
             "type": "array",
@@ -145,7 +145,7 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "doc_inspect",
             "Inspect document",
-            "Summary of the active document, including artboards, layer tree, selection and history. On a large document scope it: depth 0 for the layer skeleton, ids for just those nodes, kind for every node of one kind, limit/offset to page. inspect_document returns the same summary.",
+            "Summary of the active document, including artboards, layer tree, selection and history. A node below full opacity reports `opacity` as a 0–1 fraction and `opacityPct` in the 0–100 % scale the drawing tools and object.setProps take: pass `opacityPct` back, never `opacity`. On a large document scope it: depth 0 for the layer skeleton, ids for just those nodes, kind for every node of one kind, limit/offset to page. inspect_document returns the same summary.",
             obj(inspect_props(), &[]),
             true,
         ),
@@ -154,7 +154,7 @@ pub fn tool_definitions() -> Vec<Value> {
             "Render a preview",
             "Render an artboard (default the first) as inline PNG without changing the document. max_side defaults to 1024, limited to 1..4096.",
             obj(
-                json!({"max_side":{"type":"integer","minimum":1,"maximum":4096},"artboard":{"type":"integer","minimum":0,"description":"0-based artboard (default 0)"}}),
+                json!({"max_side":{"type":"integer","minimum":1,"maximum":4096},"artboard":{"type":"integer","minimum":0,"description":"0-based artboard (default 0)"},"traceViews":{"type":"boolean","description":TRACE_VIEWS}}),
                 &[],
             ),
             true,
@@ -196,7 +196,7 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "inspect_document",
             "Inspect document",
-            "Summary of the active document: artboards, layer tree (ids, names, kinds, bounds, fill/stroke), selection, undo history, current tool and default paint. On a large document pass depth: 0 for the layer skeleton (truncated levels report childCount), then locate objects with run_command document.find and read them with document.node. doc_inspect returns the same summary.",
+            "Summary of the active document: artboards, layer tree (ids, names, kinds, bounds, fill/stroke; `opacity` as a 0–1 fraction and `opacityPct` in the 0–100 % scale the drawing tools take), selection, undo history, current tool and default paint. On a large document pass depth: 0 for the layer skeleton (truncated levels report childCount), then locate objects with run_command document.find and read them with document.node. doc_inspect returns the same summary.",
             obj(inspect_props(), &[]),
             true,
         ),
@@ -320,6 +320,24 @@ pub fn tool_definitions() -> Vec<Value> {
             false,
         ),
         tool(
+            "answer_dialog",
+            "Answer dialog",
+            "Set fields of the desktop app's open dialog in order, then confirm (OK) or cancel it, as the control protocol's ui.dialog.set, ui.dialog.confirm and ui.dialog.cancel do. The app stores all the fields or none. When the app refuses the ui.dialog.set, for example because no dialog is open, the call is an error and the dialog is not confirmed or canceled. inspect_ui shows the open dialog and its fields (ui.dialog). After invoke_menu app.quit or file.close replies {\"pending\":\"saveChanges\"}: {action:\"confirm\"} saves, {set:[{field:\"discard\",value:true}],action:\"confirm\"} closes without saving, {action:\"cancel\"} cancels. Returns {dialog, result}: the dialog after the fields were set, and the reply to confirm or cancel. Desktop app only.",
+            obj(
+                json!({
+                    "set": {
+                        "type": "array",
+                        "maxItems": MAX_DIALOG_FIELDS,
+                        "items": obj(json!({"field": string("Dialog field"), "value": {"description": "The field's new value (any JSON; default null)"}}), &["field"]),
+                        "description": "Fields to set, in order (one ui.dialog.set that sets all of them or none)",
+                    },
+                    "action": {"type": "string", "enum": ["confirm", "cancel"], "description": "Then confirm (OK) or cancel the dialog"},
+                }),
+                &[],
+            ),
+            false,
+        ),
+        tool(
             "invoke_menu",
             "Invoke menu",
             "Invoke a menu item by its command id (same ids as list_commands, including UI-only commands like view.zoomIn or window.* in the desktop app).",
@@ -344,6 +362,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     "artboard": {"type": "integer", "minimum": 0, "description": "Artboard index (default 0)"},
                     "window": {"type": "boolean", "description": "Capture the app window (desktop app only)"},
                     "max_side": {"type": "integer", "minimum": 1, "maximum": 4096, "description": MAX_SIDE_WINDOW},
+                    "traceViews": {"type": "boolean", "description": TRACE_VIEWS},
                 }),
                 &[],
             ),
@@ -842,6 +861,47 @@ fn transform(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
     Ok(json!({"applied": done}))
 }
 
+/// Most fields one `answer_dialog` call may set.
+const MAX_DIALOG_FIELDS: usize = 256;
+
+/// Sets the open dialog's fields in order with one `ui.dialog.set {fields}`, which stores all of
+/// them or none, then confirms or cancels it. Every argument is checked before anything is sent to
+/// the app.
+fn answer_dialog(b: &mut dyn Backend, a: &Args) -> Result<Value, String> {
+    let set = match a.get("set") {
+        None => &[][..],
+        Some(Value::Array(s)) => s.as_slice(),
+        Some(_) => return Err("`set` must be a list of {field, value?}".into()),
+    };
+    if set.len() > MAX_DIALOG_FIELDS {
+        return Err(format!("`set` holds {} fields; at most {MAX_DIALOG_FIELDS}", set.len()));
+    }
+    let mut fields = vec![];
+    for (i, item) in set.iter().enumerate() {
+        let item = item.as_object().ok_or_else(|| format!("set {i} must be {{field, value?}}"))?;
+        if let Some(k) = item.keys().find(|k| *k != "field" && *k != "value") {
+            return Err(format!("set {i}: unknown key `{k}` (expected field, value)"));
+        }
+        let field = item.get("field").and_then(Value::as_str).ok_or_else(|| format!("set {i}: missing string `field`"))?;
+        fields.push(json!({"field": field, "value": item.get("value").cloned().unwrap_or(Value::Null)}));
+    }
+    let then = match a.get("action") {
+        None => None,
+        Some(v) if v == "confirm" => Some("ui.dialog.confirm"),
+        Some(v) if v == "cancel" => Some("ui.dialog.cancel"),
+        Some(_) => return Err("`action` must be confirm or cancel".into()),
+    };
+    if fields.is_empty() && then.is_none() {
+        return Err("give `set` and/or `action`".into());
+    }
+    let dialog = if fields.is_empty() { Value::Null } else { b.call("ui.dialog.set", json!({"fields": fields}))? };
+    let result = match then {
+        Some(method) => b.call(method, json!({}))?,
+        None => Value::Null,
+    };
+    Ok(json!({"dialog": dialog, "result": result}))
+}
+
 fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     let path = a.get("path").and_then(Value::as_str).map(|p| absolute_path(b, p)).transpose()?;
     let path = path.as_deref();
@@ -850,6 +910,7 @@ fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     if max.is_some() && !window {
         return Err("`max_side` applies to a window capture (`window: true`); size an artboard render with `scale`".into());
     }
+    let trace_views = trace_views(a)?;
     // The backend writes the file, where its automation roots allow, and sends the image back too
     // (`data`): this process writes nothing.
     let mut p = json!({"data": true});
@@ -864,6 +925,9 @@ fn screenshot(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
             if let Some(v) = a.get(k) {
                 p[k] = v.clone();
             }
+        }
+        if trace_views {
+            p["traceViews"] = json!(true);
         }
         b.call("ui.render", p)?
     };
@@ -946,6 +1010,16 @@ const BRIEF: &str = "Leave out each command's params description (the bulk of th
 /// The `max_side` argument of the window captures.
 const MAX_SIDE_WINDOW: &str =
     "Window capture only: longest side of the returned image in pixels; a larger capture is scaled down to it (default: the full capture)";
+/// The `traceViews` argument of the artboard renders.
+const TRACE_VIEWS: &str = "Draw Image Trace objects in the view set with imageTrace.setView (outlines, the source image…), as the app's window does; by default they draw their tracing result, as exports do";
+
+/// `traceViews`: false when absent.
+fn trace_views(a: &Args) -> Result<bool, String> {
+    match a.get("traceViews") {
+        None => Ok(false),
+        Some(v) => v.as_bool().ok_or_else(|| "`traceViews` must be a boolean".into()),
+    }
+}
 
 /// The command catalogue narrowed by the listing tools' arguments: `filter` (or `query`) on the
 /// id, label and menu path, `menu` on the menu path, `enabledOnly`, and `brief` (no `params`
@@ -1089,6 +1163,10 @@ fn dispatch(b: &mut dyn Backend, name: &str, a: &Args) -> Result<ToolResult, Str
         "type_text" => {
             need_ui(b, name)?;
             j(b.call("ui.text", json!({"text": req_str(a, "text")?}))?)
+        }
+        "answer_dialog" => {
+            need_ui(b, name)?;
+            j(answer_dialog(b, a)?)
         }
         "open_panel" => {
             need_ui(b, name)?;
@@ -1340,6 +1418,7 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
         None => 0,
         Some(v) => v.as_u64().ok_or("`artboard` must be a 0-based artboard index")?,
     };
+    let trace_views = trace_views(a)?;
     let doc = b.call("document.inspect", json!({"depth":0}))?;
     let board =
         doc.get("artboards").and_then(Value::as_array).and_then(|v| v.get(usize::try_from(index).ok()?)).ok_or(format!("no artboard {index}"))?;
@@ -1354,7 +1433,11 @@ fn render_preview(b: &mut dyn Backend, a: &Args) -> Result<ToolResult, String> {
     if width.max(height) * scale > 4096.0 {
         return Err("artboard is too large for a bounded preview".into());
     }
-    let r = b.call("ui.render", json!({"scale":scale, "artboard": index}))?;
+    let mut p = json!({"scale":scale, "artboard": index});
+    if trace_views {
+        p["traceViews"] = json!(true);
+    }
+    let r = b.call("ui.render", p)?;
     let encoded = r.get("pngBase64").and_then(Value::as_str).ok_or("renderer returned no image")?;
     let png = vectorcraft_format::base64_decode(encoded).ok_or("renderer returned bad base64")?;
     let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).map_err(|e| format!("read preview: {e}"))?;

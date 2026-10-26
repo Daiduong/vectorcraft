@@ -173,6 +173,8 @@ mod tests_sysclip_emf;
 #[cfg(test)]
 mod tests_sysclip_probe;
 #[cfg(test)]
+mod tests_tab_overflow;
+#[cfg(test)]
 mod tests_taskbar;
 #[cfg(test)]
 mod tests_transparencygrid;
@@ -332,7 +334,7 @@ pub struct Services {
     /// pointer visible next to the tool glyph ([`cursors::hide_system_pointer`], #2450).
     pub no_cursor_theme: bool,
     /// The pen pressure and pen end the host reads from the system itself (desktop Linux under
-    /// X11 and XWayland). The canvas uses the pressure when a frame's events carry no touch force,
+    /// X11 and XWayland, macOS and Windows). The canvas uses the pressure when a frame's events carry no touch force,
     /// and the end to switch to the Eraser tool and back. Without it, pen pressure comes from
     /// touch events only ([`stylus`]).
     pub stylus: Option<stylus::StylusFeed>,
@@ -432,6 +434,8 @@ pub struct CacheKey {
     pub anti_alias: bool,
     /// Type › Highlight Alternate Glyphs (#394).
     pub highlight_alternate_glyphs: bool,
+    /// Type › Highlight Substituted Fonts.
+    pub highlight_substituted_fonts: bool,
     /// [`vectorcraft_render::placed_document::generation`]: placed documents' bitmaps made since.
     pub placed: u64,
     /// View › Pixel Preview: the document pixels rendered (x0, y0, x1, y1), one per point, shown
@@ -1959,6 +1963,8 @@ impl VectorcraftApp {
             || self.pending_screenshots.iter().any(|p| p.slot.is_none())
     }
 
+    /// Capture the viewport identity and geometry (content and inner rectangles, pixels per point and
+    /// zoom) whose change advances the screenshot epoch.
     fn geometry_stamp(ctx: &egui::Context) -> GeometryStamp {
         GeometryStamp {
             viewport: ctx.viewport_id(),
@@ -2063,6 +2069,8 @@ impl VectorcraftApp {
         }
     }
 
+    /// Identify the document, modal dialog and focused widget that the current accepted input batch
+    /// belongs to.
     fn input_generation(&self) -> InputGeneration {
         InputGeneration {
             document: self.session.active().map_or(0, |document| document.uid),
