@@ -336,6 +336,7 @@
 	Create	Opret
 	Release Selection	Frigør markering
 	Remove Threading	Fjern sammenkædning
+	Break Thread	Bryd sammenkædning
 	Fit Headline	Tilpas overskrift
 	Find Font…	Find skrifttype…
 	Change Case	Ændr store/små bogstaver
@@ -536,6 +537,7 @@
 	Save Grid as Preset…	Gem gitter som forudindstilling…
 	Snap to Pixel	Fastgør til pixel
 	Precise Cursors	Præcise markører
+	Image Trace Preview	Forhåndsvisning af billedsporing
 	Snap to Point	Fastgør til punkt
 	Snap to Glyph	Fastgør til tegn
 	New View…	Ny visning…
@@ -1301,7 +1303,6 @@ lighting	Light	Lys
 	URL:	URL:
 	Use Even-Odd Fill Rule	Brug fyldreglen lige-ulige
 	Use Non-Zero Winding Fill Rule	Brug fyldreglen ikke-nul-vikling
-	Brush Libraries (on the roadmap)	Penselbiblioteker (på vejkortet)
 	List View	Listevisning
 	New Art Brush from Selection	Ny kunstpensel fra markering
 	New Bristle Brush	Ny bustpensel
@@ -2105,6 +2106,7 @@ lighting	Light	Lys
 	Fidelity:	Præcision:
 	Fill new strokes	Udfyld nye konturer
 	Alt key toggles to Smooth Tool	Alt-tasten skifter til Udglatningsværktøj
+	Live curve fitting	Kurvetilpasning undervejs
 	The document has no colour swatches.	Dokumentet har ingen farveprøver.
 	Style Name:	Typografinavn:
 	Crop To	Beskær til
@@ -5416,6 +5418,12 @@ swatch	Bright Violet	Kraftig violet
 	Shift:	Forskydning:
 	Fresco…	Fresko…
 	Fresco	Fresko
+	Lock Artboards	Lås tegneflader
+	Unlock Artboards	Lås tegneflader op
+	Lock Selected	Lås markerede
+	Lock All Except Selected	Lås alle undtagen markerede
+	Lock All	Lås alle
+	Unlock Selected	Lås markerede op
 	Effect Gallery…	Effektgalleri…
 	Effect Gallery Dialog	Dialogboksen Effektgalleri
 	Arc Segment Tool Options	Indstillinger for buesegmentværktøj
@@ -5490,6 +5498,34 @@ axis	Y Axis	Y-akse
 	Rectangular Grid Tool Options	Indstillinger for rektangulært gitterværktøj
 	Polar Grid Tool Options	Indstillinger for polært gitterværktøj
 	Fill Line	Udfyld linje
+	Pathfinder Options	Pathfinder-indstillinger
+	Divide and Outline Will Remove Unpainted Artwork	Opdel og Kontur fjerner grafik uden maling
+@msg	precision must be from 0.001 to 10 pt	precision skal være fra 0,001 til 10 pt
+@msg	`pathfinder` must be an object	`pathfinder` skal være et objekt
+	Add to Brushes	Føj til pensler
+	Brush Library	Penselbibliotek
+	Save Brush Library	Gem penselbibliotek
+	Save Brushes…	Gem pensler…
+	Open Brush Library	Åbn penselbibliotek
+	Selected Brushes Only	Kun valgte pensler
+	Brush Libraries Menu	Menu med penselbiblioteker
+	User Brush Library 1	Brugerpenselbibliotek 1
+	User Brush Library 2	Brugerpenselbibliotek 2
+	User Brush Library 3	Brugerpenselbibliotek 3
+	User Brush Library 4	Brugerpenselbibliotek 4
+	User Brush Library 5	Brugerpenselbibliotek 5
+	User Brush Library 6	Brugerpenselbibliotek 6
+	User Brush Library 7	Brugerpenselbibliotek 7
+	User Brush Library 8	Brugerpenselbibliotek 8
+	User Brush Library 9	Brugerpenselbibliotek 9
+	User Brush Library 10	Brugerpenselbibliotek 10
+	Art Ribbons	Kunstbånd
+	Calligraphic Nibs	Kalligrafiske penne
+	Pattern Borders	Mønsterborter
+	Scatter Shapes	Spredte former
+	Save Brush Library…	Gem penselbibliotek…
+@msg	no empty artboards to delete	ingen tomme tegneflader at slette
 	Scale Presets	Skaleringsforudindstillinger
 # Object › Expand… dimmed until Expand Appearance (#3089).
 	Expand Appearance first (Object › Expand Appearance)	Udvid først udseendet (Objekt › Udvid udseende)
+	Live preview	Direkte forhåndsvisning

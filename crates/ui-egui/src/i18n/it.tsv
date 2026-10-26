@@ -342,7 +342,6 @@ font-technology	Variable	Variabili
 	Brush Affects:	Il pennello influisce su:
 	Brush Definition	Definizione pennello
 	Brush Libraries	Librerie pennelli
-	Brush Libraries (on the roadmap)	Librerie pennelli (in programma)
 	Brush Options…	Opzioni pennello…
 	Brush Strokes	Pennellate
 	Brushes	Pennelli
@@ -1109,6 +1108,7 @@ font-technology	Variable	Variabili
 	Fill and Stroke	Riempimento e traccia
 	Fill new strokes	Riempi nuove tracce
 	Alt key toggles to Smooth Tool	Il tasto Alt attiva lo strumento Smussa
+	Live curve fitting	Adattamento della curva in tempo reale
 	Keep selected	Mantieni selezionato
 	Merge only with selection	Unisci solo con la selezione
 	Consider Open Filled Paths as Closed	Considera chiusi i tracciati aperti con riempimento
@@ -2631,6 +2631,7 @@ mark-style	Japanese	Giapponese
 	Remove Plug-in	Rimuovi plug-in
 	Remove Selected Assets	Rimuovi risorse selezionate
 	Remove Threading	Rimuovi concatenamento
+	Break Thread	Interrompi concatenamento
 	Remove “{keyword}”	Rimuovi “{keyword}”
 	Rename	Rinomina
 	Rename Asset	Rinomina risorsa
@@ -3124,6 +3125,7 @@ mark-style	Japanese	Giapponese
 	Snap to Grid	Aggancia alla griglia
 	Snap to Pixel	Aggancia ai pixel
 	Precise Cursors	Cursori di precisione
+	Image Trace Preview	Anteprima di Ricalco immagine
 	Snap to Point	Aggancia al punto
 	Snap to Unit	Aggancia all'unità
 	Snapping Tolerance	Tolleranza di aggancio
@@ -5010,6 +5012,10 @@ lighting	Light	Luce
 	Snap to Perpendicular	Aggancia alla perpendicolare
 @msg	unknown snap option `{key}` (use {options})	opzione di aggancio sconosciuta `{key}` (usare {options})
 	Gap Length:	Lunghezza lacuna:
+@msg	`colorGroup` needs `library: "document"`	`colorGroup` richiede `library: "document"`
+@msg	`colorGroup` needs `palette: "documentLibrary"`	`colorGroup` richiede `palette: "documentLibrary"`
+@msg	`colorGroup` needs `mode: "color"`	`colorGroup` richiede `mode: "color"`
+@msg	no color group `{name}` in the document (see swatch.list)	nessun gruppo colori `{name}` nel documento (vedi swatch.list)
 @msg	Flat Logo traced the image at {_1} × {_2} pixels, averaged down from {_3} × {_4}.	La modalità Logo piatto ha vettorializzato l’immagine a {_1} × {_2} pixel, ridotta per media da {_3} × {_4}.
 	Artboard {n} of {total}	Tavola da disegno {n} di {total}
 	File {n} of {total}	File {n} di {total}
@@ -5071,6 +5077,12 @@ lighting	Light	Luce
 	Shift:	Spostamento:
 	Fresco…	Affresco…
 	Fresco	Affresco
+	Lock Artboards	Blocca tavole da disegno
+	Unlock Artboards	Sblocca tavole da disegno
+	Lock Selected	Blocca selezionate
+	Lock All Except Selected	Blocca tutto tranne la selezione
+	Lock All	Blocca tutto
+	Unlock Selected	Sblocca selezionate
 	Effect Gallery…	Galleria effetti…
 	Effect Gallery Dialog	Finestra di dialogo Galleria effetti
 	Arc Segment Tool Options	Opzioni strumento Segmento arco
@@ -5162,8 +5174,42 @@ axis	Y Axis	Asse Y
 	Rectangular Grid Tool Options	Opzioni strumento Griglia rettangolare
 	Polar Grid Tool Options	Opzioni strumento Griglia polare
 	Fill Line	Riempi linea
+	Pathfinder Options	Opzioni elaborazione tracciati
+	Divide and Outline Will Remove Unpainted Artwork	Dividi e Contorno rimuovono la grafica senza colore
+@msg	precision must be from 0.001 to 10 pt	precision deve essere compreso tra 0,001 e 10 pt
+@msg	`pathfinder` must be an object	`pathfinder` deve essere un oggetto
+	Add to Brushes	Aggiungi ai pennelli
+	Brush Library	Libreria pennelli
+	Save Brush Library	Salva libreria pennelli
+	Save Brushes…	Salva pennelli…
+	Open Brush Library	Apri libreria pennelli
+	Selected Brushes Only	Solo pennelli selezionati
+	Brush Libraries Menu	Menu Librerie pennelli
+	User Brush Library 1	Libreria pennelli utente 1
+	User Brush Library 2	Libreria pennelli utente 2
+	User Brush Library 3	Libreria pennelli utente 3
+	User Brush Library 4	Libreria pennelli utente 4
+	User Brush Library 5	Libreria pennelli utente 5
+	User Brush Library 6	Libreria pennelli utente 6
+	User Brush Library 7	Libreria pennelli utente 7
+	User Brush Library 8	Libreria pennelli utente 8
+	User Brush Library 9	Libreria pennelli utente 9
+	User Brush Library 10	Libreria pennelli utente 10
+	Art Ribbons	Nastri grafici
+	Calligraphic Nibs	Pennini calligrafici
+	Pattern Borders	Bordi a motivo
+	Scatter Shapes	Forme a dispersione
+	Save Brush Library…	Salva libreria pennelli…
+@msg	`{_1}` has no brushes to apply	`{_1}` non ha pennelli da applicare
+@msg	missing `library` (see brush.libraries)	manca `library` (vedi brush.libraries)
+@msg	no brush `{n}`	nessun pennello `{n}`
+@msg	no brush `{n}` in `{_1}`	nessun pennello `{n}` in `{_1}`
+@msg	no brush library `{key}` (see brush.libraries)	nessuna libreria pennelli `{key}` (vedi brush.libraries)
+@msg	the document has no brushes to save	il documento non ha pennelli da salvare
+@msg	no empty artboards to delete	nessuna tavola da disegno vuota da eliminare
 	Scale Presets	Preimpostazioni di scala
 @msg	a {width}×{height} screenshot's byte count overflows	il numero di byte di uno screenshot {width}×{height} va in overflow
 @msg	the window's {what} ({points} points × {scale} DPI) cannot size a screenshot	la {what} della finestra ({points} punti × {scale} DPI) non può dimensionare uno screenshot
 # Object › Expand… dimmed until Expand Appearance (#3089).
 	Expand Appearance first (Object › Expand Appearance)	Espandi prima l’aspetto (Oggetto › Espandi aspetto)
+	Live preview	Anteprima dal vivo

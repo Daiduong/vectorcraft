@@ -108,6 +108,8 @@ impl eframe::App for App {
         file_access::unconfined(|| self.logic_frame(ctx, frame));
         self.app.finish_ime_logic(ctx);
     }
+    /// Restore the borderless caption, apply platform menu and pen input, and hand the frame to the
+    /// app's raw-input hook while the keyboard user is unconfined.
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
         // winit gives the window its caption back when it changes the window's flags (maximize,
         // restore, …): take it off again before the frame is laid out (#1758).
@@ -614,6 +616,9 @@ fn services(parent: Parent, ui: egui::Context) -> Services {
         // macOS reads it from AppKit's events (#852).
         #[cfg(target_os = "macos")]
         stylus: mac_tablet::start(),
+        // Windows reads it from the pen's pointer messages (`windows_stylus`).
+        #[cfg(all(windows, not(target_vendor = "win7")))]
+        stylus: Some(windows_stylus::start()),
         read: Some(Box::new(|p: &str| std::fs::read(p).map_err(|e| e.to_string()))),
         write: Some(Box::new(write_file)),
         exists: Some(Box::new(|p: &str| std::path::Path::new(p).exists())),
@@ -813,6 +818,11 @@ Without a window (converting, scripting, the MCP server), use vectorcraft-cli:
 ";
 
 fn main() -> std::process::ExitCode {
+    // Windows: the update helper is a copy of this program started with `--finish-update`.
+    #[cfg(windows)]
+    if let Some(result) = craft_update::self_update::finish(&craft_update::suite::VECTORCRAFT, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
+        std::process::exit(i32::from(result.is_err()));
+    }
     // Before any thread starts: the pointer must find a cursor theme on Wayland (#2450).
     #[cfg(target_os = "linux")]
     cursor_theme::apply();
@@ -969,9 +979,9 @@ fn main() -> std::process::ExitCode {
         }
         options
     };
-    // With Windows Ink, winit reports a pen as a touch and drops its barrel button; the message
-    // hook notes each pointer contact and whether it starts with the barrel button held
-    // (`windows_stylus`).
+    // With Windows Ink, winit reports a pen as a touch and drops its barrel button and which end
+    // is down; the message hook notes each pointer contact and whether it starts with the barrel
+    // button held, and writes the pen's end into the pen feed (`windows_stylus`).
     #[cfg(all(windows, not(target_vendor = "win7")))]
     let options = {
         use winit::platform::windows::EventLoopBuilderExtWindows as _;
@@ -1045,6 +1055,7 @@ fn main() -> std::process::ExitCode {
                 prefs_dir::attach_profile_store(&mut session);
                 prefs_dir::attach_plugin_store(&mut session);
                 let mut app = VectorcraftApp::new(session, services(cc.winit_window().cloned(), cc.egui_ctx.clone()));
+                app.set_startup_update_check(true);
                 load_prefs(&mut app, saved);
                 // The saved PDF presets live in their own folder (also read by vectorcraft-cli),
                 // which takes over from the copy the preferences file used to hold.
@@ -1059,13 +1070,15 @@ fn main() -> std::process::ExitCode {
                 }
                 // Linux may not map the window before the first frames, so a saved maximize is retried then (#3635).
                 let pending_maximize = cfg!(target_os = "linux") && app.ui.window.as_ref().is_some_and(|g| g.maximized);
-                // User Defined swatch, graphic style and symbol libraries live next to the preferences.
+                // User Defined swatch, graphic style, symbol and brush libraries live next to the preferences.
                 let swatches = prefs_path().and_then(|p| Some(p.parent()?.join("Swatches").to_string_lossy().to_string()));
                 app.session.swatch_libraries.set_user_dir(swatches);
                 let styles = prefs_path().and_then(|p| Some(p.parent()?.join("Graphic Styles").to_string_lossy().to_string()));
                 app.session.style_libraries.set_user_dir(styles);
                 let symbols = prefs_path().and_then(|p| Some(p.parent()?.join("Symbols").to_string_lossy().to_string()));
                 app.session.symbol_libraries.set_user_dir(symbols);
+                let brushes = prefs_path().and_then(|p| Some(p.parent()?.join("Brushes").to_string_lossy().to_string()));
+                app.session.brush_libraries.set_user_dir(brushes);
                 // With the User Defined libraries listed, the persistent library panels reopen.
                 vectorcraft_ui_egui::panels::library_panel::restore(&mut app);
                 // So do the Libraries panel's libraries; runs without preferences (agents' test
