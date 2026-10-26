@@ -990,6 +990,9 @@ pub struct Prefs {
     /// font is highlighted, in every document (on by default).
     pub highlight_substituted_fonts: bool,
     pub placeholder_text: bool,
+    /// Type › Typst… may run the `typst` program, which downloads the `@preview` packages markup
+    /// imports. Off by default; automation confined to its roots can't turn it on.
+    pub enable_typst: bool,
     // Units
     pub units_general: String,
     pub units_stroke: String,
@@ -1261,6 +1264,7 @@ impl Default for Prefs {
             highlight_alternate_glyphs: false,
             highlight_substituted_fonts: true,
             placeholder_text: true,
+            enable_typst: false,
             units_general: s("points"),
             units_stroke: s("points"),
             units_type: s("points"),
@@ -2920,6 +2924,8 @@ mod tests_trap;
 mod tests_typearea;
 #[cfg(test)]
 mod tests_typescale;
+#[cfg(test)]
+mod tests_typst;
 #[cfg(test)]
 mod tests_units;
 #[cfg(test)]
