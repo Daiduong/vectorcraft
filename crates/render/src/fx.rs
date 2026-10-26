@@ -35,8 +35,8 @@
 //!
 //! A cached raster is made again when something its content reads from outside the object
 //! changes ([`Inputs`]): the pattern definitions, symbols, images and brushes it uses, the
-//! document's raster resolution, color mode and substitution highlights, the knockout its object
-//! inherits, the color settings and fonts, the plug-ins its plug-in effects run, and the options
+//! document's raster resolution and color mode, the substitution highlights, the knockout its
+//! object inherits, the color settings and fonts, the plug-ins its plug-in effects run, and the options
 //! and layer settings it is drawn with.
 //!
 //! The same applies to one fill or stroke's own raster effects (around that item alone) and to
@@ -941,8 +941,8 @@ pub(crate) struct Reads {
     images: bool,
     /// Brushed strokes: the brush library.
     brushes: bool,
-    /// Type: the fonts, whether overprinting shows ([`crate::proof::overprints`]) and Document
-    /// Setup's substitution highlights.
+    /// Type: the fonts, whether overprinting shows ([`crate::proof::overprints`]) and the
+    /// substitution highlights.
     text: bool,
     /// Plug-in effects on its objects: the plug-ins installed. Those in the symbol and pattern art
     /// it shows are found with the document's inputs ([`DocInputs`]).
@@ -975,6 +975,11 @@ impl Reads {
     /// it has a plug-in effect, and when it shows symbol or pattern art.
     pub(crate) fn plugins_can_change(self) -> bool {
         self.plugins || self.symbols || self.patterns
+    }
+
+    /// Does the content show symbol or pattern art?
+    pub(crate) fn shows_definitions(self) -> bool {
+        self.symbols || self.patterns
     }
 
     fn add(&mut self, n: &Node) {
@@ -1039,7 +1044,8 @@ impl Inputs {
 /// pixels, the address of the color settings, and whether the patterns' and symbols' art has a
 /// plug-in effect. Art, pixels and previews are hashed by the addresses of their shared values,
 /// and names, keys, tiles, tile types and overlaps are hashed by value. The live cache keeps these
-/// inputs with each evaluated live object and with each mesh's quads (`crate::live`), and
+/// inputs with each evaluated live object, with each mesh's quads and with what each walk of a
+/// live object or of effect art found when it found no placed file (`crate::live`), and
 /// [`Renderer::fx_art`] keeps them with art that can be made from evaluated live objects.
 pub(crate) struct DocInputs {
     patterns: u64,
@@ -1053,6 +1059,14 @@ pub(crate) struct DocInputs {
     /// allocation, not the value, so no other value gets one of those addresses while these
     /// inputs are kept.
     _held: Held,
+}
+
+impl DocInputs {
+    /// Whether `self` and `other` were made from the same patterns and symbols: their names,
+    /// tilings and art.
+    pub(crate) fn same_art(&self, other: &DocInputs) -> bool {
+        (self.patterns, self.symbols) == (other.patterns, other.symbols)
+    }
 }
 
 /// The pattern and symbol art, the image pixels and the color settings, held weakly.
@@ -2116,13 +2130,18 @@ impl Renderer {
         if reads.images {
             let o = f.opts;
             (doc.images, self.dim_images.map(f32::to_bits), o.smooth_images, o.image_mips, o.trace_views, o.progressive_placed).hash(&mut h);
+            o.trace_source.as_deref().hash(&mut h);
         }
         if reads.brushes {
             self.brushes.library_key(f.doc, self.stamp).hash(&mut h);
         }
         if reads.text {
-            let setup = &f.doc.setup;
-            let highlights = f.opts.highlight_substitutions.then_some((setup.highlight_substituted_fonts, setup.highlight_substituted_glyphs));
+            let o = f.opts;
+            let highlights = o.highlight_substitutions.then_some((
+                o.highlight_substituted_fonts,
+                f.doc.setup.highlight_substituted_glyphs,
+                o.highlight_alternate_glyphs,
+            ));
             (vectorcraft_text::FontDb::global().generation(), crate::proof::overprints(f.opts), highlights).hash(&mut h);
         }
         if reads.plugins || (doc.plugins && (reads.symbols || reads.patterns)) {
@@ -2381,7 +2400,7 @@ impl Renderer {
                 if st.brush.is_some() && self.draw_brush(ctx, f, n, ig, st) {
                     return;
                 }
-                self.draw_stroke(ctx, f, Affine::IDENTITY, ig, rule, st, ib);
+                self.draw_stroke(ctx, f, Affine::IDENTITY, ig, rule, st, None, ib);
             }
         }
     }

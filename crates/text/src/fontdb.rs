@@ -1457,12 +1457,34 @@ static USER_FONT_DIRS: std::sync::RwLock<Vec<PathBuf>> = std::sync::RwLock::new(
 /// if installed. The next check for installed fonts ([`FontDb::installed_fonts_changed`]) then
 /// reports the change, and a scan catalogs them.
 pub fn set_user_font_dirs(dirs: Vec<PathBuf>) {
+    set_user_font_dirs_confined(dirs, false);
+}
+
+/// [`set_user_font_dirs`]; `confined` when a caller confined to some folders (automation) chose
+/// them: the scan then reads only what is inside them, not files or folders that links in them
+/// lead to elsewhere, since the caller could plant such a link.
+pub fn set_user_font_dirs_confined(dirs: Vec<PathBuf>, confined: bool) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         *USER_FONT_DIRS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = dirs;
+        USER_FONT_DIRS_CONFINED.store(confined, std::sync::atomic::Ordering::Relaxed);
     }
     #[cfg(target_arch = "wasm32")]
-    let _ = dirs;
+    let _ = (dirs, confined);
+}
+
+/// Whether [`USER_FONT_DIRS`] were chosen by a confined caller ([`set_user_font_dirs_confined`]).
+#[cfg(not(target_arch = "wasm32"))]
+static USER_FONT_DIRS_CONFINED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The folders, as found on disk, that the scan reads only the inside of
+/// ([`set_user_font_dirs_confined`]).
+#[cfg(not(target_arch = "wasm32"))]
+fn confined_font_dirs() -> Vec<PathBuf> {
+    if !USER_FONT_DIRS_CONFINED.load(std::sync::atomic::Ordering::Relaxed) {
+        return vec![];
+    }
+    user_font_dirs().iter().filter_map(|d| std::fs::canonicalize(d).ok()).collect()
 }
 
 /// The folders [`set_user_font_dirs`] added (none on wasm).
@@ -1951,7 +1973,7 @@ impl FontDb {
                 }
             }
         }
-        let mut faces = self.faces.write().unwrap_or_else(|e| e.into_inner());
+        let mut faces = self.faces.write().unwrap_or_else(std::sync::PoisonError::into_inner);
         let before = faces.len();
         for f in made {
             // Another thread may have added the same face meanwhile.
@@ -2031,10 +2053,14 @@ impl FontDb {
         let mut stack = paths.clone();
         // Each folder once, however links lead back to it.
         let mut visited = std::collections::HashSet::new();
+        let confined = confined_font_dirs();
+        let inside_confined = |p: &Path| std::fs::canonicalize(p).is_ok_and(|r| confined.iter().any(|root| r.starts_with(root)));
         while let Some(d) = stack.pop() {
             if !visited.insert(std::fs::canonicalize(&d).unwrap_or_else(|_| d.clone())) {
                 continue;
             }
+            // In a confined folder, a link is followed only to somewhere inside one.
+            let in_confined = !confined.is_empty() && inside_confined(&d);
             // Before listing it: a font installed meanwhile changes it after this.
             modified_at.push((d.clone(), modified(&d)));
             // Not a folder: a font file named by itself (or nothing, yet).
@@ -2044,6 +2070,9 @@ impl FontDb {
             };
             for e in rd.flatten() {
                 let p = e.path();
+                if in_confined && e.file_type().is_ok_and(|t| t.is_symlink()) && !inside_confined(&p) {
+                    continue;
+                }
                 if p.is_dir() {
                     stack.push(p);
                 } else {
@@ -2154,8 +2183,9 @@ impl FontDb {
             let face = |a: &Alias| a.paired.is_none() && a.style.is_some();
             let ps =
                 self.read_faces().iter().flat_map(|f| Alias::of(&f.family, &f.style, &f.keys)).find(|(k, a)| *k == joined && face(a)).map(|(_, a)| a);
-            let ps =
-                ps.or_else(|| self.aliases.read().unwrap_or_else(|e| e.into_inner()).get(&joined).and_then(|v| v.iter().find(|a| face(a)).cloned()));
+            let ps = ps.or_else(|| {
+                self.aliases.read().unwrap_or_else(std::sync::PoisonError::into_inner).get(&joined).and_then(|v| v.iter().find(|a| face(a)).cloned())
+            });
             if let Some(a) = ps {
                 return (a.family, a.style.unwrap_or_else(|| style.to_string()));
             }
@@ -2189,7 +2219,7 @@ impl FontDb {
             None => scanned(&self.read_catalog()).unwrap_or_default(),
             Some(traits) if traits.variable => traits,
             Some(traits) => {
-                let variable = scanned(&self.catalog.read().unwrap_or_else(|e| e.into_inner())).is_some_and(|t| t.variable);
+                let variable = scanned(&self.catalog.read().unwrap_or_else(std::sync::PoisonError::into_inner)).is_some_and(|t| t.variable);
                 FontTraits { variable, ..traits }
             }
         }
@@ -2596,11 +2626,11 @@ impl FontDb {
             return None;
         }
         let key = (face.id, gid);
-        if let Some(i) = self.images.lock().unwrap_or_else(|e| e.into_inner()).kept.get(&key) {
+        if let Some(i) = self.images.lock().unwrap_or_else(std::sync::PoisonError::into_inner).kept.get(&key) {
             return i.clone();
         }
         let image = face.skrifa().and_then(|f| crate::bitmap::glyph_image(&f, face.upem, gid)).map(Arc::new);
-        self.images.lock().unwrap_or_else(|e| e.into_inner()).keep(key, image.clone());
+        self.images.lock().unwrap_or_else(std::sync::PoisonError::into_inner).keep(key, image.clone());
         image
     }
 
@@ -2627,7 +2657,7 @@ impl FontDb {
         // stroke too.
         let coloured = Some((foreground.key(), stroke.filter(|_| svg).map(|c| c.key())));
         {
-            let cache = self.colours.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self.colours.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some(c) = [None, coloured].iter().find_map(|k| cache.kept.get(&(face.id, gid, *k))) {
                 return c.clone();
             }
@@ -2639,7 +2669,7 @@ impl FontDb {
             crate::colr::colour_glyph(&f, face.location(), face.upem, gid, foreground)
         };
         let key = (face.id, gid, if used { coloured } else { None });
-        self.colours.lock().unwrap_or_else(|e| e.into_inner()).keep(key, content.clone());
+        self.colours.lock().unwrap_or_else(std::sync::PoisonError::into_inner).keep(key, content.clone());
         content
     }
 }
