@@ -684,6 +684,27 @@ fn freehand_points_record_the_pens_tilt_bearing_and_rotation() {
     assert_eq!(tilt.unwrap().at(0.9), vectorcraft_doc::PressureProfile::MID, "half way over without one");
 }
 
+/// #764: a stroke that connects two paths joins the pen's tilt, bearing and rotation of both, the
+/// connected path's after the stroke's.
+#[test]
+fn connecting_two_strokes_joins_their_pens_rotation() {
+    let mut s = session();
+    let draw = |s: &mut Session, points: Value| {
+        NodeId(s.execute("path.freehand", &json!({"points": points, "style": "brush"})).unwrap()["id"].as_u64().unwrap())
+    };
+    let a = draw(&mut s, json!([[0, 50, 0.5, 30, 0, 90], [100, 50, 0.5, 30, 0, 90]]));
+    let b = draw(&mut s, json!([[200, 50, 0.5, 30, 0, 45], [300, 50, 0.5, 30, 0, 45]]));
+    let connect =
+        json!({"points": [[100, 50], [200, 50]], "style": "brush", "extend": {"id": a.0, "end": "end"}, "connect": {"id": b.0, "end": "start"}});
+    s.execute("path.freehand", &connect).unwrap();
+    assert!(s.doc().unwrap().doc.node(b).is_none(), "joined on");
+    let (_, _, rotation) = pose_of(&s, a);
+    let rotation = rotation.unwrap();
+    assert!((rotation.at(0.1) + 90.0).abs() < 1e-6, "{rotation:?}");
+    assert!(rotation.at(0.5).abs() < 1e-6, "the stroke is unturned: {rotation:?}");
+    assert!((rotation.at(0.9) + 45.0).abs() < 1e-6, "the connected path's: {rotation:?}");
+}
+
 /// #764: the Paintbrush records a pen's tilt, bearing and rotation on the stroke, a brush with
 /// Roundness on Tilt draws it, and it lasts through saving; a mouse stroke records none.
 #[test]
