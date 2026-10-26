@@ -991,6 +991,35 @@ fn a_preset_saved_with_full_document_chooses_it_again() {
     assert_eq!(field(&app, "select"), "full");
 }
 
+/// A preset saved without Full Document chooses All again after a Full Document preset, or Range
+/// when the checked artboards are not all of them.
+#[test]
+fn a_preset_saved_without_full_document_leaves_full_document() {
+    use export_for_screens::PresetPick;
+    let (mut app, _) = app(2, false);
+    open(&mut app);
+    let save = |app: &mut VectorcraftApp, name: &str| {
+        let mut d = app.ui.dialog.take().unwrap();
+        export_for_screens::preset_pick(app, &mut d, PresetPick::Save(name.into()));
+        app.ui.dialog = Some(d);
+        let saved = app.session.prefs.screen_export_presets.iter().find(|p| p.name == name).unwrap_or_else(|| panic!("{}", app.ui.status));
+        json!({"name": name, "settings": saved.settings.clone()})
+    };
+    set(&mut app, "select", json!("all"));
+    let boards = save(&mut app, "Boards");
+    assert_eq!(boards["settings"]["fullDocument"], json!(false));
+    set(&mut app, "select", json!("full"));
+    let whole = save(&mut app, "Whole");
+    let apply = |app: &mut VectorcraftApp, preset: &Value| export_for_screens::apply_preset(app.ui.dialog.as_mut().unwrap(), preset);
+    apply(&mut app, &boards);
+    assert_eq!(field(&app, "select"), "all");
+    apply(&mut app, &whole);
+    assert_eq!(field(&app, "select"), "full");
+    set(&mut app, "boards", json!([true, false]));
+    apply(&mut app, &boards);
+    assert_eq!(field(&app, "select"), "range");
+}
+
 /// A preset whose `folders` is empty uses its `subfolders`, as the export command does, and
 /// without either it keeps the dialog's Folders.
 #[test]

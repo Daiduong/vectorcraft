@@ -411,8 +411,8 @@ fn naming_params(d: &Dialog, p: &mut Map<String, Value>) {
 /// selected.
 fn preset_settings(app: &VectorcraftApp, d: &Dialog) -> Value {
     let mut p = Map::new();
-    if !["assets", "layers", "selection"].contains(&d.str("tab").as_str()) && d.str("select") == "full" {
-        p.insert("fullDocument".into(), json!(true));
+    if !["assets", "layers", "selection"].contains(&d.str("tab").as_str()) {
+        p.insert("fullDocument".into(), json!(d.str("select") == "full"));
     }
     p.insert("formats".into(), d.fields.get("formats").cloned().unwrap_or(json!([])));
     naming_params(d, &mut p);
@@ -822,11 +822,17 @@ pub(super) fn preset_pick(app: &mut VectorcraftApp, d: &mut Dialog, pick: Preset
 }
 
 /// Set the dialog to preset `preset` (`{name, settings}`): its formats, settings, naming, folders
-/// and Full Document; what it doesn't name keeps the dialog's value.
+/// and Full Document; what it doesn't name keeps the dialog's value. A preset saved without Full
+/// Document chooses All, or Range when the checked artboards are not all of them.
 pub(super) fn apply_preset(d: &mut Dialog, preset: &Value) {
     let st = &preset["settings"];
-    if st["fullDocument"].as_bool() == Some(true) {
-        d.fields.insert("select".into(), json!("full"));
+    match st["fullDocument"].as_bool() {
+        Some(true) => set_select(d, "full"),
+        Some(false) if d.str("select") == "full" => {
+            let all = d.fields.get("boards").and_then(Value::as_array).is_none_or(|b| b.iter().all(|b| b.as_bool() != Some(false)));
+            set_select(d, if all { "all" } else { "range" });
+        }
+        _ => {}
     }
     if let Some(rows) = st["formats"].as_array() {
         d.fields.insert("formats".into(), json!(rows.iter().filter(|r| r.is_object()).map(editable_row).collect::<Vec<_>>()));
