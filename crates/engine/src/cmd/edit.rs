@@ -549,11 +549,8 @@ fn without_inner(doc: &Document, placed: Vec<(NodeId, Option<Vec<usize>>)>) -> i
     })
 }
 
-fn copy(s: &mut Session, _: &Value) -> Result<Value> {
-    // The Artboard tool copies its artboard (and the art on it).
-    if s.tool_id() == "artboard" {
-        return super::panelcmds::artboard_copy(s, &json!({}), false);
-    }
+/// The direct-selection flag and resolved root nodes for Copy and Cut operations.
+fn copy_cut_targets(s: &Session) -> Result<(bool, Vec<NodeId>)> {
     let st = s.doc()?;
     let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
     let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
@@ -566,6 +563,16 @@ fn copy(s: &mut Session, _: &Value) -> Result<Value> {
         CompoundHandling::PromoteAll
     };
     let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
+    Ok((direct, roots))
+}
+
+fn copy(s: &mut Session, _: &Value) -> Result<Value> {
+    // The Artboard tool copies its artboard (and the art on it).
+    if s.tool_id() == "artboard" {
+        return super::panelcmds::artboard_copy(s, &json!({}), false);
+    }
+    let (direct, roots) = copy_cut_targets(s)?;
+    let st = s.doc()?;
     let new_clip = Clipboard::copy(st, &roots, direct);
     if direct && new_clip.nodes.is_empty() {
         return Ok(json!({ "copied": 0 }));
@@ -578,18 +585,7 @@ fn cut(s: &mut Session, p: &Value) -> Result<Value> {
     if s.tool_id() == "artboard" {
         return super::panelcmds::artboard_copy(s, &json!({}), true);
     }
-    let st = s.doc()?;
-    let in_drawing_tool = matches!(s.tool_id(), "pen" | "curvature");
-    let direct = !in_drawing_tool && (!st.selection.anchors.is_empty() || !st.selection.segments.is_empty());
-    let in_isolated_compound = st.isolation.is_some_and(|iso| st.doc.node(iso).is_some_and(|n| matches!(n.kind, NodeKind::Compound { .. })));
-    let handling = if in_isolated_compound {
-        CompoundHandling::KeepAll
-    } else if direct {
-        CompoundHandling::KeepOnlyPartial(&st.selection)
-    } else {
-        CompoundHandling::PromoteAll
-    };
-    let roots = roots_within(&st.doc, st.selection.in_paint_order(&st.doc), handling);
+    let (direct, roots) = copy_cut_targets(s)?;
     let res = copy(s, p)?;
     if res.get("copied").and_then(Value::as_u64) == Some(0) {
         return Ok(res);
@@ -887,7 +883,8 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                 if let Some(par_id) = compound_par {
                     match c.kind {
                         NodeKind::Compound { children, .. } => {
-                            for child in children {
+                            let count = children.len();
+                            for (offset, child) in children.into_iter().enumerate() {
                                 let mut child_node = Arc::unwrap_or_clone(child);
                                 let child_id = d.alloc_id();
                                 child_node.id = child_id;
@@ -895,7 +892,11 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                                 if let NodeKind::Path { live, .. } = &mut child_node.kind {
                                     *live = None;
                                 }
-                                new_ids.push(d.insert(par, idx, child_node)?);
+                                let insert_idx = if idx == usize::MAX { usize::MAX } else { idx.saturating_add(offset) };
+                                new_ids.push(d.insert(par, insert_idx, child_node)?);
+                            }
+                            if count > 1 {
+                                *placed.entry(par).or_default() += count - 1;
                             }
                         }
                         NodeKind::Path { .. } => {
@@ -908,7 +909,10 @@ fn paste_clip(s: &mut Session, p: &Value, mode: PasteMode, clip: &Clipboard, cho
                         _ => {
                             let outer_par = d.parent_of(par_id);
                             let beside_idx = d.position(par_id).map(|(_, i, _)| i + 1).unwrap_or(usize::MAX);
-                            new_ids.push(d.insert(outer_par, beside_idx, c)?);
+                            let offset = *placed.entry(outer_par).or_default();
+                            *placed.entry(outer_par).or_default() += 1;
+                            let insert_idx = if beside_idx == usize::MAX { usize::MAX } else { beside_idx.saturating_add(offset) };
+                            new_ids.push(d.insert(outer_par, insert_idx, c)?);
                         }
                     }
                 } else {

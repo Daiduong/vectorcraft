@@ -93,9 +93,7 @@ pub struct Clipboard {
     pub artboards: Vec<vectorcraft_doc::Artboard>,
 }
 
-/// When direct selection is active on a path (some anchors or segments selected), extract only
-/// the selected runs as new open path nodes (with retracted endpoint handles). Returns `None`
-/// when the node is selected whole or is not a path.
+/// Indices of segments selected on `sp` (either explicitly or via incident anchors).
 pub(crate) fn subpath_selected_segments(
     sp: &vectorcraft_geom::SubPath,
     si: usize,
@@ -154,6 +152,9 @@ pub(crate) fn subpath_selected_segments(
     selected_segs
 }
 
+/// When direct selection is active on a path (some anchors or segments selected), extract only
+/// the selected runs as new open path nodes (with retracted endpoint handles). Returns `None`
+/// when the node is selected whole or is not a path.
 pub(crate) fn extract_direct_selection(node: &Node, selection: &Selection) -> Option<Vec<Node>> {
     let seg_refs = selection.segments.get(&node.id);
     let anchor_refs = selection.anchors.get(&node.id);

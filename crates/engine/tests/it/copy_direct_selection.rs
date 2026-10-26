@@ -513,3 +513,48 @@ fn shape_creation_in_compound_path_isolation_adds_member_to_compound() {
 
     check_session(&s).unwrap();
 }
+
+#[test]
+fn paste_compound_into_isolated_compound_preserves_child_order() {
+    let mut s = Session::new();
+    run(&mut s, "file.new", json!({"width": 300, "height": 300}));
+    let r1 = rect(&mut s, 10.0, 10.0, 10.0, 10.0);
+    let r2 = rect(&mut s, 30.0, 10.0, 10.0, 10.0);
+    let r3 = rect(&mut s, 50.0, 10.0, 10.0, 10.0);
+    run(&mut s, "select.set", json!({"ids": [r1.0, r2.0, r3.0]}));
+    let src_compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    // Copy src_compound (contains [r1, r2, r3] in order)
+    run(&mut s, "select.set", json!({"ids": [src_compound.0]}));
+    run(&mut s, "edit.copy", json!({}));
+
+    // Create target compound
+    let t1 = rect(&mut s, 100.0, 100.0, 80.0, 80.0);
+    let t2 = rect(&mut s, 120.0, 120.0, 40.0, 40.0);
+    run(&mut s, "select.set", json!({"ids": [t1.0, t2.0]}));
+    let target_compound = NodeId(run(&mut s, "object.compoundPath.make", json!({}))["id"].as_u64().unwrap());
+
+    // Isolate target compound and select member t1 so paste-in-front targets index 1
+    run(&mut s, "object.isolate", json!({"id": target_compound.0}));
+    run(&mut s, "select.set", json!({"ids": [t1.0]}));
+
+    // Paste in front of t1
+    let pasted = run(&mut s, "edit.pasteInFront", json!({}));
+    let ids: Vec<u64> = pasted["ids"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap()).collect();
+    assert_eq!(ids.len(), 3, "unpacked all 3 children");
+
+    let doc = &s.doc().unwrap().doc;
+    let target_node = doc.node(target_compound).unwrap();
+    let children = target_node.children().unwrap();
+    assert_eq!(children.len(), 5);
+
+    // Verify the 3 pasted children appear in children in exact forward order [r1_copy, r2_copy, r3_copy]
+    let child_ids: Vec<u64> = children.iter().map(|c| c.id.0).collect();
+    let pos0 = child_ids.iter().position(|&id| id == ids[0]).unwrap();
+    let pos1 = child_ids.iter().position(|&id| id == ids[1]).unwrap();
+    let pos2 = child_ids.iter().position(|&id| id == ids[2]).unwrap();
+    assert_eq!(pos1, pos0 + 1, "child 1 must immediately follow child 0");
+    assert_eq!(pos2, pos1 + 1, "child 2 must immediately follow child 1");
+
+    check_session(&s).unwrap();
+}
