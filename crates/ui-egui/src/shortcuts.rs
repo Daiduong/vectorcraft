@@ -10,6 +10,7 @@ use vectorcraft_engine::{Result as EngineResult, UiRequest, ViewInfo};
 use vectorcraft_tools::{Mods, SurroundingUnit, ToolKey};
 
 use crate::VectorcraftApp;
+use crate::panels::character::TextInput;
 
 /// Parse "Cmd+Shift+]" into an egui shortcut. `Cmd` is Command on macOS and Ctrl elsewhere.
 /// `+` and `=` name one chord key ([`Key::Equals`]): `+` is Shift+`=` on many layouts, so a
@@ -115,13 +116,15 @@ fn runs_a_command(i: &egui::InputState, key: Key, cmd_only: bool) -> bool {
             _ => None,
         })
         .collect();
-    let shortcuts = all_shortcuts();
-    let bound = |m: &Modifiers| {
-        shortcuts
-            .iter()
-            .any(|(sc, ..)| sc.logical_key == key && (sc.modifiers.command || (!cmd_only && sc.modifiers.any())) && m.matches_logically(sc.modifiers))
-    };
-    !presses.is_empty() && presses.iter().all(bound)
+    !presses.is_empty() && presses.iter().all(|m| chord_runs_a_command(key, *m, cmd_only))
+}
+
+/// Is a command shortcut bound to `key` held with `m`, matched logically?
+/// `cmd_only`: only chords with Cmd count.
+fn chord_runs_a_command(key: Key, m: Modifiers, cmd_only: bool) -> bool {
+    all_shortcuts()
+        .iter()
+        .any(|(sc, ..)| sc.logical_key == key && (sc.modifiers.command || (!cmd_only && sc.modifiers.any())) && m.matches_logically(sc.modifiers))
 }
 
 /// Give a copy or cut chord held with more modifiers its key back when it has a shortcut of its own:
@@ -234,9 +237,14 @@ enum Seq {
     InterruptNavigation,
     InterruptCommand,
     ResetCompleted(egui::ImeResetId),
+    /// Enter, which types a line break.
+    Enter,
+    /// An editing key with modifiers, an arrow, Home, End, Tab or a clipboard event.
+    Edit(TextInput),
 }
 
-/// Typed text and IME events, in the order they came, to the Type tool.
+/// Typed text, IME events, editing keys, Enter and clipboard events, in the order they came, to the
+/// Type tool. Escape is handled before them, in [`handle`].
 fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
     let view = app.view_info();
     // Switching apps mid-composition needs nothing: the macOS IME keeps its marked text and goes
@@ -245,14 +253,18 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
     // A frame that began composing keeps its editing keys for the IME: a Backspace that empties the
     // marked text must not then delete the committed character before it.
     let was_composing = app.session.tool_composing();
+    crate::panels::character::keep_ctx(ctx);
     // Text, IME events and plain Backspace/Delete are taken together, in the order they arrived, so
     // a keyboard-hook IME (UniKey/OpenKey) whose tone key sends Backspace(s) and then re-injects
     // characters in one frame interleaves correctly. Taken as two passes (all text, then the keys)
-    // the deletes land after the inserts and the diacritics are lost. Each handled event is removed
-    // so `route_type_input` below does not process the same Backspace/Delete again.
+    // the deletes land after the inserts and the diacritics are lost. Enter, the other editing keys
+    // and the clipboard events join them: ← or a paste lands between the texts around it, and each
+    // Enter types its own line break. Each handled event is removed from the input.
     let seq = type_sequence(ctx);
     let viewport = ctx.viewport_id();
     let mut old_composition_retired = false;
+    // Set once the IME commits text in this frame.
+    let mut committed = false;
     for e in seq {
         // Before the UI, a changed composition or guard is settled `pending`: a token bound here
         // could outlive a route this pass invalidates later (a palette/dialog/Home) and attach to
@@ -274,9 +286,18 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
         // erases after it belong to the old caret, not to the destination it will establish.
         if crate::ime::deferred(app, ctx) {
             match &e {
-                Seq::Text(_) | Seq::Erase(..) => continue,
+                // A cut or paste must not change the text at the old caret either.
+                Seq::Text(_) | Seq::Erase(..) | Seq::Edit(TextInput::Cut | TextInput::Paste(_)) => continue,
                 _ => {}
             }
+        }
+        // Editing keys and clipboard events belong to the IME while it composes, and in a frame
+        // that began composing until the IME commits or the composition is retired.
+        if matches!(&e, Seq::Edit(_)) && (app.session.tool_composing() || (was_composing && !committed && !old_composition_retired)) {
+            continue;
+        }
+        if let Seq::Commit(t) = &e {
+            committed |= !t.is_empty() && t != "\n" && t != "\r";
         }
         let preedit_empty = match &e {
             Seq::Preedit(text, _) => Some(text.is_empty()),
@@ -297,9 +318,11 @@ fn type_text(app: &mut VectorcraftApp, ctx: &egui::Context) -> bool {
     old_composition_retired
 }
 
-/// Take this frame's typed text, IME events and plain Backspace/Delete, in the order they arrived.
+/// Take this frame's typed text, IME events, editing keys, Enter and clipboard events, in the order
+/// they arrived.
 fn type_sequence(ctx: &egui::Context) -> Vec<Seq> {
     let mut seq = vec![];
+    let mut edits = vec![];
     ctx.input_mut(|i| {
         // Move the events out instead of cloning their strings: a keyboard hook that reinjects a
         // batch keeps the batch in `seq` only, not in both the input list and a second copy.
@@ -332,12 +355,19 @@ fn type_sequence(ctx: &egui::Context) -> Vec<Seq> {
                 // routed as a key or shortcut).
                 egui::Event::MiddleClickPaste { text, .. } => seq.push(Seq::Text(text)),
                 // Only unmodified Backspace/Delete interleave with injected text; word-delete and other
-                // modified forms stay with `route_type_input`.
+                // modified forms are taken with the other editing keys below.
                 egui::Event::Key { key: key @ (Key::Backspace | Key::Delete), pressed: true, modifiers: m, .. }
                     if !m.command && !m.alt && !m.ctrl =>
                 {
                     let tk = if key == Key::Backspace { ToolKey::Backspace } else { ToolKey::Delete };
                     seq.push(Seq::Erase(tk, Mods { shift: m.shift, ..Mods::default() }));
+                }
+                // A command bound to the chord (Cmd+Enter) runs instead of the line break, in the
+                // shortcuts after this.
+                egui::Event::Key { key: Key::Enter, pressed, modifiers: m, .. } if !chord_runs_a_command(Key::Enter, m, true) => {
+                    if pressed {
+                        seq.push(Seq::Enter);
+                    }
                 }
                 e @ egui::Event::PointerButton { button: egui::PointerButton::Primary, pressed, .. } => {
                     primary_down = pressed;
@@ -352,22 +382,25 @@ fn type_sequence(ctx: &egui::Context) -> Vec<Seq> {
                     }
                     kept.push(e);
                 }
-                e @ egui::Event::Key { key, pressed: true, modifiers, .. }
-                    if matches!(key, Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End)
-                        || key == Key::A && modifiers.command =>
-                {
-                    seq.push(Seq::InterruptNavigation);
-                    kept.push(e);
+                e => {
+                    let interrupt = match &e {
+                        egui::Event::Key { key, pressed: true, modifiers, .. }
+                            if matches!(key, Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End)
+                                || *key == Key::A && modifiers.command =>
+                        {
+                            Some(Seq::InterruptNavigation)
+                        }
+                        egui::Event::Key { pressed: true, modifiers, .. } if is_shortcut_chord(*modifiers) => Some(Seq::InterruptCommand),
+                        egui::Event::Cut | egui::Event::Paste(_) => Some(Seq::InterruptCommand),
+                        _ => None,
+                    };
+                    seq.extend(interrupt);
+                    // The other editing keys and the clipboard events apply in this order too.
+                    if crate::panels::character::type_input(&e, &mut edits) {
+                        kept.push(e);
+                    }
+                    seq.extend(edits.drain(..).map(Seq::Edit));
                 }
-                e @ egui::Event::Key { pressed: true, modifiers, .. } if is_shortcut_chord(modifiers) => {
-                    seq.push(Seq::InterruptCommand);
-                    kept.push(e);
-                }
-                e @ (egui::Event::Cut | egui::Event::Paste(_)) => {
-                    seq.push(Seq::InterruptCommand);
-                    kept.push(e);
-                }
-                other => kept.push(other),
             }
         }
         i.events = kept;
@@ -470,8 +503,8 @@ fn apply_type_event(
         }
         // While composing (or in a frame that began composing), editing keys belong to the IME.
         Seq::Erase(tk, m) if !was_composing && !app.session.tool_composing() => {
-            // Mirror `route_type_input`/`text_key`: surface an erase error in the status bar
-            // instead of discarding it, and report the successful edit as application-origin.
+            // Mirror `text_key`: surface an erase error in the status bar instead of discarding it,
+            // and report the successful edit as application-origin.
             let target_before = crate::ime::target(&mut app.session, view);
             let before = crate::ime::stamp(&mut app.session, view);
             let r = app.session.tool_key(tk, m, view);
@@ -494,6 +527,23 @@ fn apply_type_event(
                 Ok(_) => crate::ime::note_ime_apply(app, ctx, view, target_before, stamp_before),
             }
             r
+        }
+        // An Enter that confirms the composition types no line break.
+        Seq::Enter if was_composing || app.session.tool_composing() => Ok(vec![]),
+        Seq::Enter => {
+            let target_before = crate::ime::target(&mut app.session, view);
+            let before = crate::ime::stamp(&mut app.session, view);
+            let r = app.session.tool_key(ToolKey::Enter, Mods::default(), view);
+            if r.is_ok() {
+                crate::ime::note_application_edit(app, ctx, view, target_before, before);
+            }
+            crate::canvas::apply_requests(app, r);
+            Ok(vec![])
+        }
+        // `text_key` and `text_paste` report the edit as application-origin.
+        Seq::Edit(t) => {
+            crate::panels::character::apply_type_input(app, t);
+            Ok(vec![])
         }
     }
 }
@@ -554,7 +604,13 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     let composing = app.session.tool_composing();
     // Tool keys first (Enter/Escape end paths; arrows change polygon sides while dragging).
     let busy = app.session.tool_busy();
+    // Enter in the Type tool types a line break, so it goes to the tool with the frame's text,
+    // below.
+    let enter_types = app.session.tool_wants_text();
     for (k, tk) in [(Key::Enter, ToolKey::Enter), (Key::Escape, ToolKey::Escape)] {
+        if k == Key::Enter && enter_types {
+            continue;
+        }
         if !typing && !composing && ctx.input(|i| i.key_pressed(k)) {
             // A chord a command is bound to (Cmd+Enter) runs only that command, in the shortcuts
             // below, also when the tool claims the key. While the Type tool edits text only Cmd
@@ -639,26 +695,10 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
             });
             return;
         }
-        // A deferred pointer/navigation notice has not established its destination yet. Its
-        // clipboard suffix must not cut or paste at the old caret; only the notice's own actual
-        // handler (kept in the raw vector) may run.
-        if crate::ime::deferred(app, ctx) {
-            ctx.input_mut(|input| {
-                input.events.retain(|event| match event {
-                    egui::Event::Cut | egui::Event::Paste(_) => false,
-                    egui::Event::Key { key: egui::Key::X | egui::Key::V, pressed: true, modifiers, .. }
-                        if modifiers.command && !modifiers.shift && !modifiers.alt =>
-                    {
-                        false
-                    }
-                    _ => true,
-                })
-            });
-        }
-        // Editing keys with modifiers and the clipboard (Cmd+A is Select All's, below: the text).
-        crate::panels::character::route_type_input(app, ctx);
-        // Enter was already delivered above as ToolKey::Enter (newline). Only chords with the
-        // command key run commands: the rest type or edit.
+        // Cmd+A is Select All's, below: the text. Enter went to the tool in `type_text`, unless a
+        // command is bound to its chord, and so did the editing keys and the clipboard events (a
+        // cut or paste after a deferred pointer or navigation notice is dropped there). Only chords
+        // with the command key run commands: the rest type or edit.
         let hits = dispatch(app, ctx, |hit| hit.trigger.chord.mods.cmd);
         for c in hits {
             run_hit(app, ctx, &c);
@@ -2242,7 +2282,7 @@ mod tests {
 
     /// An IME replacement on the Type tool arrives as `DeleteSurroundingBytes` + `Commit` events
     /// and is taken once, in order: the marked text is dropped, the committed text replaces it, and
-    /// the events never reach `route_type_input` as typed characters.
+    /// the events are never typed as characters.
     #[test]
     fn ime_delete_surrounding_bytes_edits_the_type_tool_once() {
         use vectorcraft_tools::{PointerEvent, PointerKind};
