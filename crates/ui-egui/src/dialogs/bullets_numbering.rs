@@ -193,7 +193,7 @@ fn preset_row(
     paint: impl Fn(&egui::Painter, egui::Rect, usize, egui::Color32),
 ) -> Option<usize> {
     let t = Tokens::get(ui.ctx());
-    let ids: Vec<egui::Id> = (0..names.len()).map(|i| egui::Id::new(("bullets-numbering-preset", salt, i))).collect();
+    let ids: Vec<egui::Id> = (0..names.len()).map(|i| egui::Id::unique(("bullets-numbering-preset", salt, i))).collect();
     let mut picked = None;
     let mut focused = None;
     ui.horizontal(|ui| {
@@ -213,7 +213,7 @@ fn preset_row(
             let (width, border) = if selected || resp.has_focus() { (1.5, t.accent) } else { (1.0, t.input_border) };
             ui.painter().rect_stroke(rect, egui::CornerRadius::same(3), egui::Stroke::new(width, border), egui::StrokeKind::Inside);
             paint(ui.painter(), rect, i, t.text_strong);
-            resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, ui.is_enabled(), selected, name));
+            resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::RadioButton, ui.is_enabled(), selected, name));
             if resp.has_focus() {
                 focused = Some(i);
                 // ← and → move the choice, not egui's focus.
@@ -557,7 +557,7 @@ mod tests {
         let key = |k| egui::Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
         assert_eq!(run(vec![]), None);
         assert_eq!(run(vec![key(egui::Key::ArrowRight)]), None, "no preset has the focus");
-        ctx.memory_mut(|m| m.request_focus(egui::Id::new(("bullets-numbering-preset", "test", 1usize))));
+        ctx.memory_mut(|m| m.request_focus(egui::Id::unique(("bullets-numbering-preset", "test", 1usize))));
         run(vec![]);
         assert_eq!(run(vec![key(egui::Key::ArrowRight)]), Some(2));
         assert_eq!(run(vec![key(egui::Key::ArrowLeft)]), Some(1), "the focus moved to Dash");
