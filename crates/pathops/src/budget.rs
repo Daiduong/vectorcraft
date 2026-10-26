@@ -15,12 +15,18 @@ pub const MAX_SEGMENT_PAIRS: usize = 1 << 22;
 /// Fenwick tree of counts over its slots.
 struct Counts(Vec<isize>);
 
+#[inline]
+fn fenwick_step(i: usize) -> usize {
+    // Same as `i.isolate_lowest_one()`; that API is still unstable on the workspace MSRV.
+    1 << i.trailing_zeros()
+}
+
 impl Counts {
     fn add(&mut self, slot: usize, d: isize) {
         let mut i = slot + 1;
         while let Some(c) = self.0.get_mut(i) {
             *c += d;
-            i += i & i.wrapping_neg();
+            i += fenwick_step(i);
         }
     }
 
@@ -29,7 +35,7 @@ impl Counts {
         let (mut i, mut s) = (end.min(self.0.len().saturating_sub(1)), 0);
         while i > 0 {
             s += self.0.get(i).copied().unwrap_or(0);
-            i -= i & i.wrapping_neg();
+            i -= fenwick_step(i);
         }
         s
     }
