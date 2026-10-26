@@ -267,6 +267,13 @@ fn log_dir() -> Option<std::path::PathBuf> {
     Some(prefs_path()?.parent()?.join("logs"))
 }
 
+/// Whether eframe restored the native window it saved: only while this run persists the window, and
+/// only from a value eframe can read (a corrupt one restores nothing, so the legacy preferences'
+/// place applies then).
+fn has_native_window(persist_window: bool, storage: Option<&dyn eframe::Storage>) -> bool {
+    persist_window && storage.and_then(|s| eframe::get_value::<egui_winit::WindowSettings>(s, "window")).is_some()
+}
+
 /// Runs without preferences (`VECTORCRAFT_NO_PREFS`, agents' test runs) neither read nor write them.
 fn prefs_enabled() -> bool {
     std::env::var_os("VECTORCRAFT_NO_PREFS").is_none()
@@ -960,7 +967,10 @@ fn main() -> std::process::ExitCode {
     let crash = left_out.crash.clone();
     let custom_titlebar = custom_titlebar(saved.as_ref());
     let mut options = native_options(custom_titlebar);
-    options.persist_window = prefs_enabled();
+    // No-preferences and control-channel runs neither restore nor save the native window, so
+    // control-channel screenshots start from the same window every time.
+    let persist_window = prefs_enabled() && control_port.is_none();
+    options.persist_window = persist_window;
     options.viewport = window::start_viewport(options.viewport, saved_window);
     // winit picks Wayland whenever `WAYLAND_DISPLAY` is set; Preferences › Performance › Linux
     // Display Server › X11 opens the window through XWayland instead, where file drops work (#1151),
@@ -1068,7 +1078,7 @@ fn main() -> std::process::ExitCode {
                 // which takes over from the copy the preferences file used to hold.
                 prefs_dir::attach_pdf_preset_store(&mut app.session);
                 // Fit the window to its monitor, or put it back where it was (still hidden).
-                let has_native_state = cc.storage.is_some_and(|s| s.get_string("window").is_some());
+                let has_native_state = has_native_window(persist_window, cc.storage);
                 let winit_window = cc.winit_window().cloned();
                 if let Some(w) = &winit_window {
                     // Once eframe has native state, legacy preferences must not overwrite it.
@@ -1195,6 +1205,32 @@ mod tests {
 
     fn ui_state_with_prefs(engine_prefs: serde_json::Value) -> vectorcraft_ui_egui::UiState {
         vectorcraft_ui_egui::UiState { engine_prefs, ..Default::default() }
+    }
+
+    /// eframe's storage with only a `"window"` value.
+    struct WindowStorage(&'static str);
+
+    impl eframe::Storage for WindowStorage {
+        fn get_string(&self, key: &str) -> Option<String> {
+            (key == "window").then(|| self.0.to_owned())
+        }
+        fn set_string(&mut self, _: &str, _: String) {}
+        fn remove_string(&mut self, _: &str) {}
+        fn flush(&mut self) {}
+    }
+
+    /// The legacy preferences' place applies unless eframe really restored a window: not from a
+    /// corrupt value, and not in a run that doesn't persist the window (no preferences, control).
+    #[test]
+    fn only_a_readable_window_eframe_restores_counts_as_native_state() {
+        let saved = WindowStorage(
+            "(normal_geometry:(outer_position_pixels:Some((x:10.0,y:20.0)),scale_factor:1.0,\
+             inner_size_points:(x:800.0,y:600.0),zoom_factor:Some(1.0)),fullscreen:false,maximized:true)",
+        );
+        assert!(has_native_window(true, Some(&saved)));
+        assert!(!has_native_window(false, Some(&saved)));
+        assert!(!has_native_window(true, Some(&WindowStorage("(normal_geometry:"))));
+        assert!(!has_native_window(true, None));
     }
 
     /// Shortcut overrides an earlier version saved still load: its spellings, `panel:` keys, an

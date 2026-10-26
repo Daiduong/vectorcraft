@@ -128,7 +128,7 @@ Ranked; detail in [docs/roadmap.md](docs/roadmap.md) and [docs/gaps.md](docs/gap
 
 ## Progress log
 
-- 2026-10-26: Windows reopen at their last size, or maximized, at any interface size (such as 150%), and Restore after a maximized restart returns to the last normal size. On GNOME Wayland, where the compositor draws no frame, windows get standard minimize, maximize and close buttons. Shared change: storytold/egui#3; checked on Linux only.
+- 2026-10-26: Windows reopen at their last size, or maximized, at any interface size (such as 150%), and Restore after a maximized restart returns to the last normal size. GNOME Wayland keeps VectorCraft's own title bar; the system frame there (Preferences › User Interface › System Title Bar, or `VECTORCRAFT_TITLEBAR=system`) now has minimize, maximize and close buttons. Shared change: storytold/egui#3; checked on Linux only.
 - 2026-10-23: Pathfinder › Trap: the Pathfinder panel's Trap… and Effect › Pathfinder › Trap… add a thin overprinting strip of the lighter colour inside the darker one where two solid colours meet, so misregistered plates leave no gap ([trapping](https://helpx.adobe.com/illustrator/using/trapping.html)), with Thickness, Height/Width, Tint Reduction, Traps with Process Color and Reverse Traps. Illustrator effects 49/50 (SVG Filters remains); Live vector effects hours 6–10 → 4–8; headline numbers unchanged.
 - 2026-10-23: OpenType SVG colour fonts draw as vector art: each glyph's SVG document is read by the SVG importer, in the text's colours where it asks for them, and draws, exports and outlines as COLR glyphs do; all colour font formats are now drawn.
 - 2026-10-23: COLR colour fonts (v0 and v1, as in Noto Color Emoji's vector build, Segoe UI Emoji, Nabla) draw as vector art: their layers' colours, gradients, clips and blend modes on the canvas and in SVG, EPS, legacy `.ai` and PDF, and as editable paths with Create Outlines; glyphs using sweep gradients or compositing modes are drawn as images of the glyph.
@@ -199,7 +199,7 @@ The full pre-standard record of what landed is kept in [docs/roadmap.md](docs/ro
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-26 | trivial | Progress log: windows reopen at their last size or maximized at any interface size; standard caption buttons on GNOME Wayland (storytold/egui#3) |
+| 2026-10-26 | trivial | Progress log: windows reopen at their last size or maximized at any interface size; caption buttons on the GNOME Wayland system frame, Preferences › User Interface › System Title Bar, or `VECTORCRAFT_TITLEBAR=system` (storytold/egui#3) |
 | 2026-10-23 | minor | Progress log row for Pathfinder › Trap; Live vector effects hours 6–10 → 4–8; headline numbers unchanged. |
 | 2026-10-23 | minor | Progress log row for OpenType SVG colour fonts; headline numbers unchanged. |
 | 2026-10-23 | minor | Progress log row for COLR colour fonts; headline numbers unchanged. |
