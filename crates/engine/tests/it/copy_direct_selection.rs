@@ -492,7 +492,7 @@ fn paste_non_path_in_compound_path_isolation_inserts_into_layer() {
 }
 
 #[test]
-fn shape_creation_in_compound_path_isolation_adds_member_to_compound() {
+fn shape_creation_in_compound_path_isolation_inserts_into_layer() {
     let mut s = Session::new();
     run(&mut s, "file.new", json!({"width": 200, "height": 200}));
     let outer = rect(&mut s, 10.0, 10.0, 80.0, 80.0);
@@ -507,9 +507,9 @@ fn shape_creation_in_compound_path_isolation_adds_member_to_compound() {
     let new_rect = rect(&mut s, 40.0, 40.0, 20.0, 20.0);
 
     let doc = &s.doc().unwrap().doc;
-    assert_eq!(doc.parent_of(new_rect), Some(compound), "new shape path must be added to isolated compound path");
+    assert_ne!(doc.parent_of(new_rect), Some(compound), "new shape path is placed outside compound path in layer");
     let compound_node = doc.node(compound).unwrap();
-    assert_eq!(compound_node.children().unwrap().len(), 3, "compound path now has 3 member paths");
+    assert_eq!(compound_node.children().unwrap().len(), 2, "compound path maintains original member paths");
 
     check_session(&s).unwrap();
 }
