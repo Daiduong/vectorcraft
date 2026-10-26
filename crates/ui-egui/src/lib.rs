@@ -371,6 +371,12 @@ pub struct CanvasCache {
     /// The cache key the canvas last asked for and when it first asked for it (seconds, egui's
     /// input time), kept while [`Self::waits_for_still`] is set.
     pub still: Option<(CacheKey, f64)>,
+    /// The low-resolution frame that covers the parts of the canvas the frame shown leaves
+    /// uncovered while it is drawn for a view it was not rendered for ([`canvas::Fill`]).
+    pub fill: Option<canvas::Fill>,
+    /// The thread that renders [`Self::fill`], beside [`Self::worker`]. None on wasm, which has no
+    /// fill.
+    pub fill_worker: Option<render_worker::Worker>,
     pub worker: Option<render_worker::Worker>,
     pub worker_started: bool,
     /// The slices as laid out for (document uid, revision): the canvas draws them every frame.
@@ -773,6 +779,8 @@ impl VectorcraftApp {
                 from_worker: false,
                 waits_for_still: cfg!(target_arch = "wasm32"),
                 still: None,
+                fill: None,
+                fill_worker: None,
                 worker: None,
                 worker_started: false,
                 slices: None,

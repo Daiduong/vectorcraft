@@ -2104,11 +2104,12 @@ impl Renderer {
     /// Rasterize or De-Interlace anywhere in the content follows), the knockout `n` inherits and,
     /// while `n` holds the isolated group, isolation mode; the pattern definitions, symbols and
     /// brush library it reads; for images and placed documents their pixels and files, the
-    /// layer's Dim Images and the options they are drawn with; for type the fonts, whether
-    /// overprinting shows ([`crate::proof::overprints`]) and Document Setup's substitution
-    /// highlights; and the plug-ins installed, when an object in it has a plug-in effect, and
-    /// when it shows symbol or pattern art and an object in the document's symbol or pattern art
-    /// has one.
+    /// layer's Dim Images and the options they are drawn with (with
+    /// [`crate::RenderOptions::kept_images_only`], also which pixels the image store holds); for
+    /// type the fonts, whether overprinting shows ([`crate::proof::overprints`]) and Document
+    /// Setup's substitution highlights; and the plug-ins installed, when an object in it has a
+    /// plug-in effect, and when it shows symbol or pattern art and an object in the document's
+    /// symbol or pattern art has one.
     pub(crate) fn raster_inputs(&mut self, f: &Frame, n: &Node, reads: Reads) -> Inputs {
         let doc = self.doc_inputs(f.doc);
         let mut h = DefaultHasher::new();
@@ -2131,6 +2132,8 @@ impl Renderer {
             let o = f.opts;
             (doc.images, self.dim_images.map(f32::to_bits), o.smooth_images, o.image_mips, o.trace_views, o.progressive_placed).hash(&mut h);
             o.trace_source.as_deref().hash(&mut h);
+            // With only kept pixels drawn, a raster is made again once the store holds more pixels.
+            o.kept_images_only.then(|| crate::images::store().added()).hash(&mut h);
         }
         if reads.brushes {
             self.brushes.library_key(f.doc, self.stamp).hash(&mut h);

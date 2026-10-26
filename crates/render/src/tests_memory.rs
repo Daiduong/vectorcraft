@@ -133,6 +133,54 @@ fn kept_mips_draw_without_decoding_the_full_pixels_again() {
     assert!(frame.pixels == Renderer::new().render(&moved, 32, 16, quarter, &on).pixels);
 }
 
+/// With `kept_images_only` (the canvas's low-resolution fill), an image the store holds no pixels
+/// of draws as a light gray box and is not decoded. Once decoded, it draws from the pixels the
+/// store holds: the full pixels, when the mip for its size is not kept, and that mip is not made.
+#[test]
+fn kept_images_only_draw_from_the_store_without_decoding() {
+    let _fonts = fonts_steady();
+    let d = doc_with_image("img", png(64, 64, 105), 64, 64);
+    let kept = RenderOptions { kept_images_only: true, image_mips: true, ..Default::default() };
+    let quarter = Affine::scale(0.25);
+    let full = blob_key(&d.images["img"]).0;
+    let mut r = Renderer::new();
+    let boxed = r.render(&d, 16, 16, quarter, &kept);
+    assert!(images::store().peek(&full).is_none(), "not decoded");
+    assert!(boxed.pixels.as_chunks::<4>().0.iter().all(|p| p[3] == 40), "a light box where the image is");
+    // A frame at full size decodes the full pixels and makes no mip.
+    let _ = Renderer::new().render(&d, 64, 64, Affine::IDENTITY, &RenderOptions { image_mips: true, ..Default::default() });
+    let quarter_mip = images::ImageKey { mip: 2, ..full.clone() };
+    assert!(images::store().peek(&full).is_some() && images::store().peek(&quarter_mip).is_none());
+    let drawn = r.render(&d, 16, 16, quarter, &kept);
+    assert!(images::store().peek(&quarter_mip).is_none(), "no mip made");
+    assert!(drawn.pixels == Renderer::new().render(&d, 16, 16, quarter, &RenderOptions::default()).pixels, "the full pixels, drawn small");
+}
+
+/// With `kept_images_only`, a blur on an image the store holds no pixels of blurs the light gray
+/// box. Once the image is decoded, the same renderer blurs the image's pixels and does not draw
+/// the blurred box again from its raster cache.
+#[test]
+fn kept_images_only_make_effect_rasters_again_once_the_image_is_decoded() {
+    let _fonts = fonts_steady();
+    let mut d = Document::new(64.0, 64.0);
+    d.images.insert("img".into(), ImageBlob::new("image/png", png(64, 64, 107)));
+    let (id, layer) = (d.alloc_id(), d.layers[0].id);
+    let im = ImageObject { key: "img".into(), width: 64, height: 64, xf: Affine::IDENTITY, link: None, placement: Default::default(), pixels: None };
+    let mut n = Node::new(id, NodeKind::Image(Box::new(im)));
+    n.appearance.effects.push(effect("blur.gaussian", serde_json::json!({"radius": 2.0})));
+    d.insert(Some(layer), 0, n).unwrap();
+    let kept = RenderOptions { kept_images_only: true, image_mips: true, dragging: true, ..Default::default() };
+    let quarter = Affine::scale(0.25);
+    let full = blob_key(&d.images["img"]).0;
+    let mut r = Renderer::new();
+    let boxed = r.render(&d, 16, 16, quarter, &kept);
+    assert!(images::store().peek(&full).is_none(), "not decoded");
+    let _ = Renderer::new().render(&d, 64, 64, Affine::IDENTITY, &RenderOptions { image_mips: true, ..Default::default() });
+    let drawn = r.render(&d, 16, 16, quarter, &kept);
+    assert!(drawn.pixels != boxed.pixels, "the image's pixels, not the box");
+    assert!(drawn.pixels == Renderer::new().render(&d, 16, 16, quarter, &kept).pixels, "as a new renderer draws it");
+}
+
 /// A document of `n` point type objects reading `word`, in rows.
 fn text_doc(n: usize, word: &str) -> Document {
     use vectorcraft_doc::text::{CharStyle, TextObject};

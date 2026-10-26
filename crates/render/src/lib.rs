@@ -186,6 +186,13 @@ pub struct RenderOptions {
     /// (box-filtered from the full image, kept with the decoded images), so the full image needn't
     /// stay in memory or be sampled. Off, images always sample their full pixels (exports).
     pub image_mips: bool,
+    /// Screen views that must render quickly (the canvas's low-resolution fill): an image object
+    /// draws from pixels the shared store already holds for it: the mip
+    /// [`RenderOptions::image_mips`] would draw if the store holds it, else the nearest finer one,
+    /// else the nearest coarser one. An image object the store holds no pixels of draws as a
+    /// light gray box. No image object is decoded and no mip of one is made. Off, image objects
+    /// are decoded as they are drawn.
+    pub kept_images_only: bool,
     /// Screen views while an interaction is in progress (a drag, a dialog's preview): an object
     /// whose content only moved since an earlier frame draws its cached drop shadows, outer glows
     /// and filtered content from the rasters made then, at the nearest whole pixel, without
@@ -281,6 +288,7 @@ impl Default for RenderOptions {
             precise: false,
             supersample: false,
             image_mips: false,
+            kept_images_only: false,
             interacting: false,
             dragging: false,
             rich_black: false,
@@ -2108,6 +2116,25 @@ impl Renderer {
         let unit = f.view * im.xf * Affine::scale_non_uniform(im.width as f64, im.height as f64);
         let shown = if outline && !f.doc.setup.outline_images {
             None
+        } else if f.opts.kept_images_only {
+            let kept = self.nearest_kept(f, &im.key, im.pixels.as_deref(), outline, unit);
+            if kept.is_none() {
+                // Not decoded: a light box where the image will be, as a placed document's
+                // bitmap shows while it is made (`placed_document`).
+                ctx.set_paint(f.ink.fixed([128, 128, 128, 40]));
+                match area {
+                    Some((bp, rule)) => {
+                        ctx.set_transform(f.view);
+                        ctx.set_fill_rule(fill_rule(*rule));
+                        ctx.fill_path(bp);
+                    }
+                    None => {
+                        ctx.set_transform(f.view * im.xf);
+                        ctx.fill_rect(&rect);
+                    }
+                }
+            }
+            kept
         } else if let Some(pm) = mips.then(|| self.kept_mip(f, &im.key, im.pixels.as_deref(), outline, unit)).flatten() {
             Some(pm)
         } else {
@@ -2256,6 +2283,19 @@ impl Renderer {
             return None;
         }
         images::store().get(&images::ImageKey { mip: level, ..key })
+    }
+
+    /// The pixels of image `key` (or `own`) that [`RenderOptions::kept_images_only`] draws through
+    /// `m`, in greyscale with `grey` (the outline view's): of the mips the store holds, the one
+    /// [`image_mip`] would draw, else the nearest finer one (the full pixels last), else the
+    /// nearest coarser one. `None` when the store holds none. Nothing is marked used.
+    fn nearest_kept(&self, f: &Frame, key: &str, own: Option<&vectorcraft_doc::ImageBlob>, grey: bool, m: Affine) -> Option<Arc<Pixmap>> {
+        let (key, (w, h)) = self.image_key(f.doc, key, own, grey)?;
+        let key = if grey { key } else { ink::ink_key(&key, f.ink) };
+        let level = mip_level(m, w, h);
+        let s = images::store();
+        let at = |l: u8| s.peek(&images::ImageKey { mip: l, ..key.clone() });
+        (0..=level).rev().find_map(at).or_else(|| (level + 1..=16).find_map(at))
     }
 }
 
