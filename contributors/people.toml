@@ -164,3 +164,6 @@ sync_github_name = false
 real_name = "Caio Pontes Magalhães"
 display_name = "Caio Pontes"
 sync_github_name = false
+
+[people.adambelis]
+sync_github_name = true
