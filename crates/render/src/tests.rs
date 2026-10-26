@@ -946,6 +946,87 @@ fn an_image_too_large_as_rgba_is_not_decoded() {
     assert!(matches!(huge, Err(image::ImageError::Limits(_))), "{huge:?}");
 }
 
+/// A PNG of `w` × `h` noisy pixels cut off halfway through its bytes: its header reads, and its
+/// pixels can't be decoded.
+fn truncated_png(w: u32, h: u32) -> Vec<u8> {
+    let img = image::RgbaImage::from_fn(w, h, |x, y| {
+        let v = (x * 7919 + y * 104_729).wrapping_mul(2_654_435_761).to_le_bytes();
+        image::Rgba([v[0], v[1], v[2], 255])
+    });
+    let mut png = vec![];
+    img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+    png.truncate(png.len() / 2);
+    png
+}
+
+/// An image whose pixels can't be decoded is tried once: later renders find the store's note of it,
+/// and each render counts it in `decode_failures` for an export to report. On screen
+/// (`mark_undecoded_images`) it draws as a crossed gray box; an export draws nothing there.
+#[test]
+fn an_undecodable_image_is_tried_once_and_marked_on_screen() {
+    use vectorcraft_doc::{ImageBlob, ImageObject, NodeKind};
+    let png = truncated_png(61, 47);
+    assert_eq!(image::ImageReader::new(std::io::Cursor::new(&png)).with_guessed_format().unwrap().into_dimensions().unwrap(), (61, 47));
+    let mut d = Document::new(80.0, 60.0);
+    d.images.insert("cut".into(), ImageBlob::new("image/png", png));
+    let id = d.alloc_id();
+    let im = ImageObject {
+        key: "cut".into(),
+        width: 61,
+        height: 47,
+        xf: Affine::translate((10.0, 5.0)),
+        link: None,
+        placement: Default::default(),
+        pixels: None,
+    };
+    d.insert(Some(d.layers[0].id), 0, Node::new(id, NodeKind::Image(Box::new(im)))).unwrap();
+    // The alpha summed over the image's frame.
+    let alpha = |r: &Rendered| (10..71).flat_map(|x| (5..52).map(move |y| u64::from(r.pixel(x, y)[3]))).sum::<u64>();
+    let attempts = || paint::DECODE_ATTEMPTS.with(std::cell::Cell::get);
+    let (tried, failed) = (attempts(), decode_failures());
+    let screen = RenderOptions { mark_undecoded_images: true, ..Default::default() };
+    let mut r = Renderer::new();
+    for render in 1..=2 {
+        let shown = r.render(&d, 80, 60, Affine::IDENTITY, &screen);
+        assert!(alpha(&shown) > 0, "render {render}: the crossed box shows");
+        assert_eq!(decode_failures() - failed, render, "render {render}: counted");
+    }
+    assert_eq!(attempts() - tried, 1, "tried once");
+    let export = Renderer::new().render(&d, 80, 60, Affine::IDENTITY, &RenderOptions::default());
+    assert_eq!(alpha(&export), 0, "an export draws nothing there");
+    assert_eq!((attempts() - tried, decode_failures() - failed), (1, 3), "and counts it without decoding it again");
+}
+
+/// The rasters a renderer keeps of an object's raster effects are made again when
+/// `mark_undecoded_images` changes: a blurred image whose pixels can't be decoded shows its blurred
+/// mark only while the option is on.
+#[test]
+fn raster_effects_follow_the_undecoded_image_mark() {
+    use vectorcraft_doc::{Effect, ImageBlob, ImageObject, NodeKind};
+    let mut d = Document::new(80.0, 60.0);
+    d.images.insert("cut".into(), ImageBlob::new("image/png", truncated_png(43, 31)));
+    let id = d.alloc_id();
+    let im = ImageObject {
+        key: "cut".into(),
+        width: 43,
+        height: 31,
+        xf: Affine::translate((15.0, 12.0)),
+        link: None,
+        placement: Default::default(),
+        pixels: None,
+    };
+    let mut n = Node::new(id, NodeKind::Image(Box::new(im)));
+    n.appearance.effects.push(Effect { id: "blur.gaussian".into(), params: serde_json::json!({"radius": 2.0}), visible: true });
+    d.insert(Some(d.layers[0].id), 0, n).unwrap();
+    let alpha = |r: &Rendered| r.pixels.chunks(4).map(|p| u64::from(p[3])).sum::<u64>();
+    let mut r = Renderer::new();
+    for mark in [true, false, true] {
+        let opts = RenderOptions { mark_undecoded_images: mark, ..Default::default() };
+        let a = alpha(&r.render(&d, 80, 60, Affine::IDENTITY, &opts));
+        assert_eq!(a > 0, mark, "mark_undecoded_images {mark}: alpha {a}");
+    }
+}
+
 /// A gray image within the allowance draws its gray levels.
 #[test]
 fn a_gray_image_draws_its_gray_levels() {
@@ -999,6 +1080,70 @@ fn supersampled_art_leaves_no_seam_between_shapes_that_meet() {
     assert_eq!(supersample_factor(3000, 3000), Some(2));
     assert_eq!(supersample_factor(5000, 5000), None);
     assert_eq!(supersample_factor(40_000, 10), None);
+}
+
+/// A supersampled render draws Outline view's lines one output pixel wide, as an unsupersampled
+/// one does, instead of a quarter of a pixel: the line down x = 50.5 draws darker than 64 of 255
+/// either way, and no wider than one pixel. So do the outlines of type and a dotted guide along
+/// y = 90.5.
+#[test]
+fn supersampled_outlines_stay_one_pixel_wide() {
+    let _fonts = crate::tests_fontchange::fonts_steady();
+    let mut d = Document::new(100.0, 100.0);
+    let style = vectorcraft_doc::text::CharStyle { size: 30.0, ..Default::default() };
+    let text = vectorcraft_doc::text::TextObject::point(vectorcraft_geom::Point::new(60.0, 80.0), "H", style);
+    let t = Node::new(d.alloc_id(), NodeKind::Text(Box::new(text)));
+    d.insert(Some(d.layers[0].id), 0, t).unwrap();
+    let n = rect_node(&mut d, Rect::new(20.0, 20.0, 50.5, 80.0), Paint::solid(Color::rgb(1.0, 0.0, 0.0)), Paint::None, 0.0);
+    d.insert(Some(d.layers[0].id), 0, n).unwrap();
+    let mut guide = Node::path(d.alloc_id(), shapes::line(Point::new(5.0, 90.5), Point::new(95.0, 90.5)), Appearance::default());
+    if let NodeKind::Path { guide, .. } = &mut guide.kind {
+        *guide = true;
+    }
+    d.insert(Some(d.layers[0].id), 1, guide).unwrap();
+    let draw = |supersample: bool| {
+        let opts = RenderOptions {
+            background: Some([255, 255, 255, 255]),
+            outline: true,
+            guide: ([0, 0, 0], true),
+            precise: true,
+            supersample,
+            ..Default::default()
+        };
+        Renderer::new().render(&d, 100, 100, Affine::IDENTITY, &opts)
+    };
+    let darkest = |r: &Rendered| (48..=52).map(|x| r.pixel(x, 50)[0]).min().unwrap();
+    assert!(darkest(&draw(false)) < 64, "unsupersampled: {}", darkest(&draw(false)));
+    assert!(darkest(&draw(true)) < 64, "supersampled: {}", darkest(&draw(true)));
+    let type_darkest = |r: &Rendered| (56..=95).flat_map(|x| (45..=85).map(move |y| (x, y))).map(|(x, y)| r.pixel(x, y)[0]).min().unwrap();
+    assert!(type_darkest(&draw(false)) < 64, "unsupersampled type: {}", type_darkest(&draw(false)));
+    assert!(type_darkest(&draw(true)) < 64, "supersampled type: {}", type_darkest(&draw(true)));
+    let guide_darkest = |r: &Rendered| (10..=90).flat_map(|x| (89..=92).map(move |y| (x, y))).map(|(x, y)| r.pixel(x, y)[0]).min().unwrap();
+    assert!(guide_darkest(&draw(false)) < 64, "unsupersampled guide: {}", guide_darkest(&draw(false)));
+    assert!(guide_darkest(&draw(true)) < 64, "supersampled guide: {}", guide_darkest(&draw(true)));
+    // One pixel wide, not wider: across each line, the pixels darker than `dark` are one pixel. The
+    // path lies on pixel centers; the type's stems do not, and the guide's dots are 1.5 pixels
+    // wide, so their edges are softer.
+    let widest = |values: Vec<u8>, dark: u8| {
+        let mut runs = vec![0usize];
+        for v in values {
+            if v < dark {
+                *runs.last_mut().unwrap() += 1;
+            } else if runs.last() != Some(&0) {
+                runs.push(0);
+            }
+        }
+        runs.into_iter().max().unwrap()
+    };
+    for supersample in [false, true] {
+        let r = draw(supersample);
+        let row = |y: u32, xs: std::ops::RangeInclusive<u32>| xs.map(|x| r.pixel(x, y)[0]).collect::<Vec<_>>();
+        assert_eq!(widest(row(50, 44..=56), 200), 1, "path, supersample {supersample}: {:?}", row(50, 44..=56));
+        // Below the H's crossbar, across its two stems.
+        assert_eq!(widest(row(76, 56..=95), 128), 1, "type, supersample {supersample}: {:?}", row(76, 56..=95));
+        let guide = (10..=90).map(|x| widest((86..=95).map(|y| r.pixel(x, y)[0]).collect(), 128)).max().unwrap();
+        assert_eq!(guide, 1, "guide, supersample {supersample}");
+    }
 }
 
 /// #1613: a zero-length subpath (`m` then `L` to the same point, as `.ai` files write dots) is a
