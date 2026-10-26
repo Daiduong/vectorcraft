@@ -508,9 +508,102 @@ impl Bullet {
     }
 }
 
-/// The list a paragraph is in (Paragraph panel › Bullets). The layout draws the list's marker
-/// before the paragraph's first line, in the font, size and color of the paragraph's first
-/// character without its baseline shift, rotation, superscript or subscript, tracking, manual
+/// How a numbered list writes its numbers ([`ParaList::number`]): the Paragraph panel's Numbered
+/// List presets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NumberStyle {
+    /// 1, 2, 3…
+    #[default]
+    Arabic,
+    /// A, B, C… Z, AA, BB…
+    UpperLetters,
+    /// a, b, c… z, aa, bb…
+    LowerLetters,
+    /// I, II, III, IV…
+    UpperRoman,
+    /// i, ii, iii, iv…
+    LowerRoman,
+    /// 01, 02… 99, 100…
+    TwoDigits,
+    /// 001, 002… 999, 1000…
+    ThreeDigits,
+}
+
+/// Past this number, roman numerals and letters are written in Arabic digits.
+const MAX_LETTERS_OR_ROMAN: u32 = 3999;
+
+impl NumberStyle {
+    /// Every style, in the order the Numbered List presets list them.
+    pub const ALL: [NumberStyle; 7] = [
+        NumberStyle::Arabic,
+        NumberStyle::UpperLetters,
+        NumberStyle::LowerLetters,
+        NumberStyle::UpperRoman,
+        NumberStyle::LowerRoman,
+        NumberStyle::TwoDigits,
+        NumberStyle::ThreeDigits,
+    ];
+
+    /// Number `n` (1 or more) written in this style, without a separator. Letters run A to Z, then
+    /// AA to ZZ, then AAA and so on; roman numerals use the subtractive forms (IV, IX, XL, XC, CD,
+    /// CM); both are written in Arabic digits past 3999. Two and three digits pad with zeros and
+    /// keep every digit of a longer number.
+    pub fn format(self, n: u32) -> String {
+        let letters_or_roman =
+            matches!(self, NumberStyle::UpperLetters | NumberStyle::LowerLetters | NumberStyle::UpperRoman | NumberStyle::LowerRoman);
+        if n == 0 || (letters_or_roman && n > MAX_LETTERS_OR_ROMAN) {
+            return n.to_string();
+        }
+        match self {
+            NumberStyle::Arabic => n.to_string(),
+            NumberStyle::TwoDigits => format!("{n:02}"),
+            NumberStyle::ThreeDigits => format!("{n:03}"),
+            NumberStyle::UpperLetters => letters(n),
+            NumberStyle::LowerLetters => letters(n).to_lowercase(),
+            NumberStyle::UpperRoman => roman(n),
+            NumberStyle::LowerRoman => roman(n).to_lowercase(),
+        }
+    }
+}
+
+/// `n` (1 or more) in capital letters: A to Z, then each letter twice, three times and so on.
+fn letters(n: u32) -> String {
+    let n = n - 1;
+    let letter = char::from(b'A' + (n % 26) as u8);
+    std::iter::repeat_n(letter, (n / 26 + 1) as usize).collect()
+}
+
+/// `n` (1 to 3999) in capital roman numerals.
+fn roman(mut n: u32) -> String {
+    const DIGITS: [(u32, &str); 13] = [
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut s = String::new();
+    for (value, digits) in DIGITS {
+        while n >= value {
+            s.push_str(digits);
+            n -= value;
+        }
+    }
+    s
+}
+
+/// The list a paragraph is in (Paragraph panel › Bullets and Numbered List). The layout draws the
+/// list's marker before the paragraph's first line, in the font, size and color of the paragraph's
+/// first character without its baseline shift, rotation, superscript or subscript, tracking, manual
 /// kerning, tate-chu-yoko, underline and strikethrough ([`Self::marker_style`]), and the text after
 /// it starts at the next tab stop, the left indent counting as a stop. The marker is not a
 /// character of the text, and an empty paragraph has none. A saved list reads the fields it leaves
@@ -518,19 +611,52 @@ impl Bullet {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ParaList {
-    /// The bullet each paragraph of the list starts with.
+    /// The bullet each paragraph of a bulleted list starts with. A numbered list keeps it for
+    /// when the list is made bulleted again.
     pub bullet: Bullet,
+    /// A numbered list's number style. A bulleted list has none, and the file saves it only for a
+    /// numbered list.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<NumberStyle>,
 }
 
 impl ParaList {
     /// A bulleted list with `bullet`.
     pub fn bulleted(bullet: Bullet) -> Self {
-        Self { bullet }
+        Self { bullet, number: None }
     }
 
-    /// The characters of the marker the layout draws before the paragraph.
-    pub fn marker(&self) -> String {
-        self.bullet.character().to_string()
+    /// A numbered list with `style`.
+    pub fn numbered(style: NumberStyle) -> Self {
+        Self { bullet: Bullet::default(), number: Some(style) }
+    }
+
+    /// The characters of the marker the layout draws before the paragraph: the bullet, or for a
+    /// numbered list number `n` in its style followed by a period.
+    pub fn marker(&self, n: u32) -> String {
+        match self.number {
+            Some(style) => format!("{}.", style.format(n)),
+            None => self.bullet.character().to_string(),
+        }
+    }
+
+    /// The marker of the next paragraph of a story, whose list is `list` (None: in no list) and
+    /// which holds no text when `empty`, with `count` the numbered paragraphs counted before it.
+    /// A paragraph in no list sets the count back to 0 and has no marker; an empty paragraph has
+    /// none and leaves the count as it is; a bulleted paragraph has its bullet and leaves the
+    /// count as it is; a numbered paragraph adds one to the count and is numbered with it.
+    pub fn next_marker(list: Option<ParaList>, empty: bool, count: &mut u32) -> Option<String> {
+        let Some(list) = list else {
+            *count = 0;
+            return None;
+        };
+        if empty {
+            return None;
+        }
+        if list.number.is_some() {
+            *count = count.saturating_add(1);
+        }
+        Some(list.marker(*count))
     }
 
     /// The style the marker is set in: `first` (the style of the paragraph's first character)
@@ -547,6 +673,19 @@ impl ParaList {
             underline: false,
             strikethrough: false,
             ..first.clone()
+        }
+    }
+
+    /// The list that the Type tool starts when `typed` and a space are typed at the start of a
+    /// paragraph: "1." or "1)" starts a numbered list in 1, 2, 3, "A." or "A)" starts one in A, B,
+    /// C, and "*", "#", ">" or "+" starts a bulleted list with the filled dot. Any other text starts
+    /// none.
+    pub fn typed(typed: &str) -> Option<ParaList> {
+        match typed {
+            "1." | "1)" => Some(Self::numbered(NumberStyle::Arabic)),
+            "A." | "A)" => Some(Self::numbered(NumberStyle::UpperLetters)),
+            "*" | "#" | ">" | "+" => Some(Self::bulleted(Bullet::Dot)),
+            _ => None,
         }
     }
 }
@@ -1398,6 +1537,14 @@ impl TextKind {
     }
 }
 
+/// Move anchors `refs` of `path`, in text space, by `d` in document space (`to_text`: the
+/// document → text map). False when an anchor doesn't exist.
+fn move_anchors(path: &mut PathData, to_text: Affine, refs: &[(usize, usize)], d: Vec2) -> bool {
+    // A distance: only the linear part of the document → text map applies.
+    let local = to_text * d.to_point() - to_text * Point::ZERO;
+    refs.iter().all(|&(si, ai)| path.anchor_mut(si, ai).map(|a| a.translate(local)).is_some())
+}
+
 /// `x` as a fraction of a path's length (0..1; 0 when not finite).
 fn fraction(x: f64) -> f64 {
     if x.is_finite() { x.clamp(0.0, 1.0) } else { 0.0 }
@@ -1501,6 +1648,12 @@ pub struct TextObject {
     /// Per-paragraph attributes (see the type's docs); empty = every paragraph uses `para`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub paras: Vec<ParaStyle>,
+    /// Threaded text: the first paragraph continues from the frame before this one in its thread,
+    /// so its first line here has no first-line indent and no list marker. The engine sets it for
+    /// every frame of a thread when the story flows through them and when a file opens, and clears
+    /// it on a frame that leaves its thread and on a copy. Not saved.
+    #[serde(skip)]
+    pub first_para_continues: bool,
     /// Area Type Options (area type only).
     #[serde(default, skip_serializing_if = "crate::skip::is_default")]
     pub area: AreaOptions,
@@ -1536,6 +1689,12 @@ pub struct TextObject {
     /// <https://helpx.adobe.com/illustrator/desktop/design-with-text/edit-format-text/turn-fractional-character-widths-off-or-on.html>
     #[serde(default = "yes", rename = "fractionalWidths", skip_serializing_if = "crate::skip::is_true")]
     pub fractional_widths: bool,
+    /// Threaded text: the numbered list paragraphs the story's earlier frames count before this
+    /// frame's first paragraph ([`ParaList::next_marker`]), so one count runs through the story.
+    /// The engine sets it whenever it re-flows a thread. Type that is not threaded has 0, and the
+    /// file saves the count only when it is not 0.
+    #[serde(default, rename = "listCount", skip_serializing_if = "crate::skip::is_default")]
+    pub list_count: u32,
     /// Cached layout bounds in text space, filled in by the layout engine (not serialized).
     #[serde(skip)]
     pub cached_bounds: Option<Rect>,
@@ -1627,6 +1786,7 @@ impl TextObject {
             ruby: Vec::new(),
             para: ParaStyle::default(),
             paras: Vec::new(),
+            first_para_continues: false,
             area: AreaOptions::default(),
             path_effect: PathEffect::default(),
             path_align: PathAlign::default(),
@@ -1635,6 +1795,7 @@ impl TextObject {
             optical_margin: false,
             system_layout: false,
             fractional_widths: true,
+            list_count: 0,
             cached_bounds: None,
             cached_baselines: Vec::new(),
         }
@@ -1739,6 +1900,17 @@ impl TextObject {
         let (a, b) = (start.min(end).min(text.len()), start.max(end).min(text.len()));
         let index = |byte: usize| text.as_bytes().get(..byte).map_or(0, |s| s.iter().filter(|&&c| c == b'\n').count());
         index(a)..index(b) + 1
+    }
+    /// The list that the characters before byte `at` start ([`ParaList::typed`]) with the byte
+    /// where their paragraph starts: when the plain text from the start of the paragraph up to
+    /// `at` is a list's start followed by a space, and the paragraph is in no list. None otherwise.
+    pub fn typed_list_at(&self, at: usize) -> Option<(usize, ParaList)> {
+        let text = self.plain_text();
+        let before = text.get(..at)?;
+        let start = before.rfind('\n').map_or(0, |i| i + 1);
+        let list = ParaList::typed(before[start..].strip_suffix(' ')?)?;
+        let index = before.bytes().filter(|&b| b == b'\n').count();
+        self.para_at(index).list.is_none().then_some((start, list))
     }
     /// Apply `f` to the attributes of paragraphs `range` (indices; None = every paragraph).
     pub fn edit_paras(&mut self, range: Option<std::ops::Range<usize>>, mut f: impl FnMut(&mut ParaStyle)) {
@@ -1868,21 +2040,28 @@ impl TextObject {
     /// their handles (a Direct Selection drag of a frame corner or edge). False, changing
     /// nothing, when an anchor doesn't exist, or as [`Self::transform_area`].
     pub fn move_area_anchors(&mut self, refs: &[(usize, usize)], d: Vec2) -> bool {
-        self.reshape_area(|frame, to_text| {
-            // A distance: only the linear part of the document → text map applies.
-            let local = to_text * d.to_point() - to_text * Point::ZERO;
-            refs.iter().all(|&(si, ai)| frame.anchor_mut(si, ai).map(|a| a.translate(local)).is_some())
-        })
+        self.reshape_area(|frame, to_text| move_anchors(frame, to_text, refs, d))
+    }
+    /// Move anchors `refs` (subpath, anchor) of type on a path's path by `d` in document space,
+    /// with their handles (a Direct Selection drag of an anchor); the brackets keep their
+    /// fractions of the path. False, changing nothing, for other type, when an anchor doesn't
+    /// exist, a degenerate `xf` or a path that would not be finite.
+    pub fn move_path_anchors(&mut self, refs: &[(usize, usize)], d: Vec2) -> bool {
+        matches!(self.kind, TextKind::OnPath { .. }) && self.reshape_local(|path, to_text| move_anchors(path, to_text, refs, d))
     }
     /// Edit a copy of the area frame with `f` (given the document → text space map) and keep it
     /// when `f` succeeds and the result is finite.
     fn reshape_area(&mut self, f: impl FnOnce(&mut PathData, Affine) -> bool) -> bool {
+        matches!(self.kind, TextKind::Area { .. }) && self.reshape_local(f)
+    }
+    /// [`Self::reshape_area`] for the area frame or type on a path's path.
+    fn reshape_local(&mut self, f: impl FnOnce(&mut PathData, Affine) -> bool) -> bool {
         let det = self.xf.determinant();
         if !det.is_finite() || det.abs() < 1e-12 {
             return false;
         }
         let to_text = self.xf.inverse();
-        let TextKind::Area { frame } = &mut self.kind else { return false };
+        let (TextKind::Area { frame } | TextKind::OnPath { path: frame, .. }) = &mut self.kind else { return false };
         let mut next = frame.clone();
         if !f(&mut next, to_text) || !next.anchors().all(|(_, _, a)| a.p.is_finite() && a.h_in.is_finite() && a.h_out.is_finite()) {
             return false;
@@ -2130,6 +2309,75 @@ mod tests {
         let mut same = d.clone();
         same.keep_in_range();
         assert_eq!(same, d);
+    }
+
+    /// Numbered lists: each number style writes its numbers and rolls over (letters after Z,
+    /// roman numerals in subtractive forms, zero-padded numbers past their digits), the marker adds
+    /// a period, and the count runs through list paragraphs, skips empty and bulleted ones and
+    /// starts again after a paragraph in no list. A list from before number styles reads as
+    /// bulleted, and a bulleted list saves no number style.
+    #[test]
+    fn number_styles_write_their_numbers_and_roll_over() {
+        let numbers = |style: NumberStyle, ns: &[u32]| ns.iter().map(|&n| style.format(n)).collect::<Vec<_>>();
+        assert_eq!(numbers(NumberStyle::Arabic, &[1, 9, 10, 123]), ["1", "9", "10", "123"]);
+        assert_eq!(
+            numbers(NumberStyle::UpperLetters, &[1, 2, 26, 27, 28, 52, 53, 3999, 4000]),
+            ["A", "B", "Z", "AA", "BB", "ZZ", "AAA", &"U".repeat(154), "4000"]
+        );
+        assert_eq!(numbers(NumberStyle::LowerLetters, &[1, 26, 27]), ["a", "z", "aa"]);
+        assert_eq!(
+            numbers(NumberStyle::UpperRoman, &[1, 2, 3, 4, 5, 9, 14, 40, 90, 400, 1994, 3999, 4000]),
+            ["I", "II", "III", "IV", "V", "IX", "XIV", "XL", "XC", "CD", "MCMXCIV", "MMMCMXCIX", "4000"]
+        );
+        assert_eq!(numbers(NumberStyle::LowerRoman, &[1, 4, 9, 12]), ["i", "iv", "ix", "xii"]);
+        assert_eq!(numbers(NumberStyle::TwoDigits, &[1, 9, 10, 99, 100]), ["01", "09", "10", "99", "100"]);
+        assert_eq!(numbers(NumberStyle::ThreeDigits, &[1, 10, 999, 1000]), ["001", "010", "999", "1000"]);
+        assert_eq!(ParaList::numbered(NumberStyle::UpperRoman).marker(4), "IV.");
+        assert_eq!(ParaList::bulleted(Bullet::Square).marker(4), "\u{25AA}");
+        let (num, dot) = (Some(ParaList::numbered(NumberStyle::Arabic)), Some(ParaList::bulleted(Bullet::Dot)));
+        let mut count = 0;
+        let markers: Vec<Option<String>> = [(num, false), (num, true), (dot, false), (num, false), (None, false), (num, false)]
+            .iter()
+            .map(|&(l, empty)| ParaList::next_marker(l, empty, &mut count))
+            .collect();
+        assert_eq!(markers, [Some("1.".into()), None, Some("\u{2022}".into()), Some("2.".into()), None, Some("1.".into())]);
+        assert_eq!(count, 1);
+        let read = |v: serde_json::Value| serde_json::from_value::<ParaList>(v).unwrap();
+        assert_eq!(read(serde_json::json!({"bullet": "dash"})), ParaList::bulleted(Bullet::Dash));
+        assert_eq!(read(serde_json::json!({"number": "threeDigits"})), ParaList::numbered(NumberStyle::ThreeDigits));
+        assert_eq!(serde_json::to_value(ParaList::bulleted(Bullet::Dash)).unwrap(), serde_json::json!({"bullet": "dash"}));
+        assert_eq!(
+            serde_json::to_value(ParaList::numbered(NumberStyle::LowerRoman)).unwrap(),
+            serde_json::json!({"bullet": "dot", "number": "lowerRoman"})
+        );
+    }
+
+    /// Typed list detection: "1.", "1)", "A." and "A)" and a space at the start of a paragraph
+    /// start a numbered list, and "*", "#", ">" and "+" and a space start a bulleted list with the
+    /// filled dot. Other text, the same characters later in a paragraph or without the space, and
+    /// a paragraph already in a list start nothing.
+    #[test]
+    fn typed_list_starts_are_found_at_a_paragraphs_start() {
+        let (arabic, letters, dot) =
+            (ParaList::numbered(NumberStyle::Arabic), ParaList::numbered(NumberStyle::UpperLetters), ParaList::bulleted(Bullet::Dot));
+        let typed = ["1.", "1)", "A.", "A)", "*", "#", ">", "+"].map(ParaList::typed);
+        assert_eq!(typed, [arabic, arabic, letters, letters, dot, dot, dot, dot].map(Some));
+        for other in ["", "2.", "a.", "a)", "I.", "1", "A", "1:", "-", "•", "1.)", " 1.", "*1", "１."] {
+            assert_eq!(ParaList::typed(other), None, "{other:?}");
+        }
+        let mut t = TextObject::point(Point::ZERO, "Fruit\n1. Apples\nA) x * y\n+ ", CharStyle::default());
+        assert_eq!(t.typed_list_at(9), Some((6, arabic)));
+        assert_eq!(t.typed_list_at(19), Some((16, letters)));
+        assert_eq!(t.typed_list_at(27), Some((25, dot)));
+        // Not at the paragraph's start, not right after the space, or past the end.
+        for at in [0, 5, 8, 10, 15, 23, 25, 26, 99] {
+            assert_eq!(t.typed_list_at(at), None, "{at}");
+        }
+        let mut styles = t.paragraph_styles();
+        styles[1].list = Some(ParaList::bulleted(Bullet::Square));
+        t.set_paragraph_styles(styles);
+        assert_eq!(t.typed_list_at(9), None, "a list paragraph stays as it is");
+        assert_eq!(t.typed_list_at(19), Some((16, letters)));
     }
 
     #[test]

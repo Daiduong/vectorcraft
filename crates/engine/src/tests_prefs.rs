@@ -417,7 +417,7 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
         ("paintbrush", Cursor::Paintbrush),
         ("blobBrush", Cursor::BlobBrush),
         ("shaper", Cursor::Shaper),
-        ("pencil", Cursor::Pencil),
+        ("pencil", Cursor::PencilNew),
         ("smooth", Cursor::Smooth),
         ("pathEraser", Cursor::PathEraser),
         ("join", Cursor::Join),
@@ -463,11 +463,11 @@ fn use_precise_cursors_swaps_the_tools_own_pointers_for_a_crosshair() {
     }
 }
 
-/// With Alt held, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors turns those into
-/// a crosshair too.
+/// With Alt held while drawing, the Pencil and the Paintbrush show their closing cursors, and Use Precise Cursors
+/// turns those into a crosshair too.
 #[test]
 fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
-    use vectorcraft_tools::{Cursor, Mods};
+    use vectorcraft_tools::{Cursor, Mods, PointerEvent, PointerKind};
     let mut s = Session::new();
     s.execute("file.new", &json!({"width": 400, "height": 400})).unwrap();
     let at = vectorcraft_geom::Point::new(300.0, 300.0);
@@ -476,7 +476,10 @@ fn alt_shows_the_pencil_and_paintbrush_closing_cursors() {
         s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": precise})).unwrap();
         for (tool, c) in [("pencil", Cursor::PencilClose), ("paintbrush", Cursor::PaintbrushClose)] {
             s.select_tool(tool, ViewInfo::default()).unwrap();
+            s.pointer(&PointerEvent::new(PointerKind::Down, 250.0, 250.0), ViewInfo::default()).unwrap();
+            s.pointer(&PointerEvent::new(PointerKind::Drag, 300.0, 300.0), ViewInfo::default()).unwrap();
             assert_eq!(s.cursor(at, alt, ViewInfo::default()), if precise { Cursor::Crosshair } else { c }, "{tool}, precise {precise}");
+            s.pointer(&PointerEvent::new(PointerKind::Up, 300.0, 300.0), ViewInfo::default()).unwrap();
         }
     }
 }
@@ -1451,6 +1454,25 @@ fn highlight_alternate_glyphs_preference_is_off_by_default() {
     assert!(!s.prefs.highlight_alternate_glyphs);
 }
 
+/// Preferences › Type › Highlight Substituted Fonts: on by default, listed in the Type category,
+/// and saved with the other preferences.
+/// <https://helpx.adobe.com/illustrator/desktop/design-with-text/fonts-and-scripts/edit-text-without-replacing-missing-fonts.html>
+#[test]
+fn highlight_substituted_fonts_preference_is_on_by_default_and_saved() {
+    let mut s = Session::new();
+    assert!(s.prefs.highlight_substituted_fonts, "on by default");
+    let spec = crate::cmd::prefscmds::PREF_SPECS.iter().find(|p| p.key == "highlightSubstitutedFonts").expect("listed");
+    assert_eq!((spec.category, spec.label), ("Type", "Highlight Substituted Fonts"));
+    assert_eq!(s.execute("prefs.get", &json!({"key": "highlightSubstitutedFonts"})).unwrap(), json!(true));
+    set_pref(&mut s, "highlightSubstitutedFonts", json!(false));
+    assert!(!s.prefs.highlight_substituted_fonts);
+    let saved: Prefs = serde_json::from_value(serde_json::to_value(&s.prefs).unwrap()).unwrap();
+    assert!(!saved.highlight_substituted_fonts);
+    // Preferences saved before the key existed read it as on.
+    let old: Prefs = serde_json::from_value(json!({"highlightAlternateGlyphs": true})).unwrap();
+    assert!(old.highlight_substituted_fonts);
+}
+
 /// Preferences › Performance › Real-time Drawing and Editing (#394): off, the document isn't
 /// previewed while dragging but the pending shape still shows as a canvas overlay until commit.
 #[test]
@@ -1718,4 +1740,23 @@ fn a_straight_segment_dragged_by_direct_selection_lands_on_a_ruler_guide() {
         );
         s.execute("edit.undo", &json!({})).unwrap();
     }
+}
+
+/// The Transform panel menu's choice starts as `default` (the panels follow General › Transform
+/// Pattern Tiles): in a new session, in a preferences file saved before the choice existed and
+/// after a reset; `prefs.set` takes it and the three menu choices, and nothing else.
+#[test]
+fn transform_panel_patterns_defaults_to_following_the_general_preference() {
+    assert_eq!(Prefs::default().transform_panel_patterns, "default");
+    let old: Prefs = serde_json::from_value(json!({"transformPatternTiles": true, "scaleStrokes": true})).unwrap();
+    assert_eq!((old.transform_panel_patterns.as_str(), old.transform_pattern_tiles), ("default", true));
+    let mut s = Session::new();
+    for v in ["object", "pattern", "both", "default"] {
+        s.execute("prefs.set", &json!({"key": "transformPanelPatterns", "value": v})).unwrap();
+        assert_eq!(s.prefs.transform_panel_patterns, v);
+    }
+    assert!(s.execute("prefs.set", &json!({"key": "transformPanelPatterns", "value": "tiles"})).is_err());
+    s.execute("prefs.set", &json!({"key": "transformPanelPatterns", "value": "both"})).unwrap();
+    s.execute("prefs.reset", &json!({"category": "General"})).unwrap();
+    assert_eq!(s.prefs.transform_panel_patterns, "default");
 }

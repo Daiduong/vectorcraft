@@ -12,7 +12,6 @@ pub mod guard;
 pub mod inspect;
 pub mod journal;
 pub mod link_watch;
-pub mod namematch;
 pub mod steps;
 pub mod store;
 mod tooling;
@@ -26,7 +25,6 @@ use vectorcraft_doc::{Document, NodeId, NodeKind, Selection};
 use vectorcraft_geom::Affine;
 use vectorcraft_tools::{PaintDefaults, Tool};
 
-pub use cmd::EyedropperOptions;
 pub use cmd::clipboard::Clipboard;
 pub use cmd::create::constrain_click;
 pub use cmd::distortcmds::perspective_click;
@@ -34,6 +32,7 @@ pub use cmd::params::{check_keys, check_params};
 pub use cmd::pathops::auto_simplify_level;
 pub use cmd::rasterfx::{export_pdf, flatten_raster_effects};
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
+pub use cmd::{EyedropperOptions, PathfinderOptions};
 pub use journal::Journal;
 pub use tooling::{UiRequest, ViewInfo};
 pub use vectorcraft_doc as doc;
@@ -45,6 +44,9 @@ pub use vectorcraft_tools as tools;
 pub enum EngineError {
     #[error("unknown command `{0}`")]
     UnknownCommand(String),
+    /// An unknown command id, with the command id it most likely misspells.
+    #[error("unknown command `{0}`; did you mean `{1}`?")]
+    UnknownCommandNear(String, String),
     #[error("command `{0}` is not available right now: {1}")]
     Disabled(String, String),
     #[error("invalid parameters for `{cmd}`: {msg}")]
@@ -303,9 +305,18 @@ pub struct UndoGroup {
     /// group drops them. An entry that changed the active document has the index of the document it
     /// left active, and a canceled group turns it into that change.
     journal: Vec<(usize, Option<usize>)>,
+    /// For each `command.batch` entry in `journal`, the steps of its `commands` that belong to the
+    /// group (by number), each with the index of the document it left active when it changed the
+    /// active document: a canceled group drops those steps and keeps the batch's other ones.
+    steps: Vec<BatchSteps>,
     /// The undo step's name; else the first edit's.
     label: Option<String>,
 }
+
+/// A `command.batch` journal entry's number and the steps of it that belong to an undo group, each
+/// with the index of the document it left active when it changed the active document
+/// ([`UndoGroup::steps`]).
+type BatchSteps = (usize, Vec<(usize, Option<usize>)>);
 
 /// One undo step begun with [`Session::begin_undo_scope`], which [`Session::end_undo_scope`] ends.
 #[derive(Clone, Debug)]
@@ -378,6 +389,10 @@ pub struct DocState {
     /// That format's options as last saved (SVG options for SVG, the Save PDF settings for PDF;
     /// empty for native files): Save reuses them and `file.formatOptions` reads them back.
     pub save_options: serde_json::Map<String, Value>,
+    /// The ids of the document's artboards, in order, when `save_options` were stored: the
+    /// artboards their `artboard`, `artboards` and `range` named by number then
+    /// ([`cmd::fileio::remembered_save_options`]).
+    pub save_artboards: Vec<u32>,
     /// Opened from an older native file (former name or format version): the title says
     /// "[Converted]" and Save asks for a new name instead of overwriting it.
     pub converted: bool,
@@ -401,6 +416,10 @@ pub struct DocState {
     /// Transform Again after a perspective move or scale (Perspective Selection tool): the
     /// `perspective.transform` params it repeats. `None` once an ordinary transform follows.
     pub last_perspective: Option<Value>,
+    /// The folders a confined (automation) caller that opened or made the document may read: the
+    /// paths the document links to are looked at within them later too, when the Links panel
+    /// asks about a link outside any caller's scope.
+    pub opened_by: Option<Arc<file_access::AutomationRoots>>,
 }
 
 static NEXT_DOC_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -565,6 +584,7 @@ impl DocState {
             transparency_grid,
             format: "vectorcraft",
             save_options: Default::default(),
+            save_artboards: vec![],
             converted: false,
             view,
             recovered: false,
@@ -574,6 +594,7 @@ impl DocState {
             imported_from: None,
             import_losses: vec![],
             last_perspective: None,
+            opened_by: file_access::current(),
         }
     }
     /// Unsaved changes: the document differs from the saved one (selection changes and changes that
@@ -859,6 +880,19 @@ pub(crate) fn deselect_guides(d: &Document, sel: &mut Selection) -> bool {
     any
 }
 
+/// Deselect what the View menu keeps from being selected: the guides while Lock Guides is on
+/// ([`deselect_guides`]), and the slices that the Slice Selection tool or a slice command selected
+/// ([`Selection::slices`]) while Lock Slices or Hide Slices is on. A selected object that is an
+/// object slice stays selected. → whether any was selected.
+pub(crate) fn deselect_hidden(menu: &cmd::menucmds::MenuState, d: &Document, sel: &mut Selection) -> bool {
+    let guides = menu.guides_locked && deselect_guides(d, sel);
+    let slices = (menu.slices_locked || menu.slices_hidden) && !sel.slices.is_empty();
+    if slices {
+        sel.slices.clear();
+    }
+    guides || slices
+}
+
 /// The error of an edit that would nest objects deeper than [`vectorcraft_doc::MAX_DEPTH`].
 pub const TOO_DEEP: &str = "objects can't be nested more than 32 deep";
 const _: () = assert!(vectorcraft_doc::MAX_DEPTH == 32, "TOO_DEEP (and its catalog rows) names the cap");
@@ -952,6 +986,9 @@ pub struct Prefs {
     pub recent_fonts_count: u32,
     pub missing_glyph_protection: bool,
     pub highlight_alternate_glyphs: bool,
+    /// Type › Highlight Substituted Fonts: on screen, text drawn in a substitute for a missing
+    /// font is highlighted, in every document (on by default).
+    pub highlight_substituted_fonts: bool,
     pub placeholder_text: bool,
     // Units
     pub units_general: String,
@@ -1075,6 +1112,9 @@ pub struct Prefs {
     /// Eyedropper Options (`eyedropper.setOptions`; a preference group, see
     /// [`cmd::prefscmds::PREF_GROUPS`]).
     pub eyedropper: EyedropperOptions,
+    /// Pathfinder panel › Pathfinder Options (`object.pathfinder.options`; a preference group, see
+    /// [`cmd::prefscmds::PREF_GROUPS`]).
+    pub pathfinder: PathfinderOptions,
     /// Edit → Transparency Flattener Presets: the user's presets (the built-in ones aren't stored).
     /// Not a `prefs.set` key or group (resetting the preferences keeps them): `flattener.presets.*`
     /// edit it.
@@ -1133,6 +1173,16 @@ pub struct Prefs {
     pub constrain_proportions: bool,
     /// One Corner Radius field sets every corner of a live rectangle (off: a field per corner).
     pub single_corner_radius: bool,
+    /// The Transform panel menu's Transform Object Only / Transform Pattern Only / Transform Both
+    /// (`object`, `pattern`, `both`): what the panel's fields, flips and menu flips transform
+    /// (they pass `objects` and `patterns` to the transform commands). `default` (and any other
+    /// value), until one is chosen: they pass neither, so patterns follow General › Transform
+    /// Pattern Tiles (`transformPatternTiles`), as before the menu acted.
+    pub transform_panel_patterns: String,
+    /// The Transform panel menu's Use Registration Point for Symbol: with one symbol instance
+    /// selected, the panel and the Properties panel's Transform section measure and transform it
+    /// from its symbol's registration point instead of the reference point.
+    pub use_registration_point_for_symbol: bool,
     /// The tools' persistent options by store (a tool id, or a store a family shares: `liquify`
     /// holds the Liquify tools' Global Brush Dimensions), see [`vectorcraft_tools::settings`]:
     /// kept across tool switches and saved with the preferences. Not a Preferences dialog field:
@@ -1209,6 +1259,7 @@ impl Default for Prefs {
             recent_fonts_count: 10,
             missing_glyph_protection: true,
             highlight_alternate_glyphs: false,
+            highlight_substituted_fonts: true,
             placeholder_text: true,
             units_general: s("points"),
             units_stroke: s("points"),
@@ -1289,6 +1340,7 @@ impl Default for Prefs {
                 Color::rgb8(r, g, b).to_hex()
             },
             eyedropper: Default::default(),
+            pathfinder: Default::default(),
             flattener_presets: vec![],
             width_profiles: vec![],
             japanese_crop_marks: false,
@@ -1306,6 +1358,8 @@ impl Default for Prefs {
             print_presets: vec![],
             constrain_proportions: false,
             single_corner_radius: true,
+            transform_panel_patterns: "default".to_string(),
+            use_registration_point_for_symbol: false,
             tool_settings: Default::default(),
             perspective_presets: vec![],
             blend_options: None,
@@ -1379,6 +1433,8 @@ pub struct Session {
     pub style_libraries: cmd::stylelib::Libraries,
     /// User Defined and loaded symbol libraries (Window → Symbol Libraries); not saved.
     pub symbol_libraries: cmd::symbollib::Libraries,
+    /// User Defined and loaded brush libraries (Window → Brush Libraries); not saved.
+    pub brush_libraries: cmd::brushlib::Libraries,
     /// The Libraries panel's libraries of graphics, colours and text styles (`library.*`).
     pub libraries: cmd::library::Libraries,
     /// Where the saved PDF presets are kept, one file each; `None`: only for the session
@@ -1405,9 +1461,20 @@ pub struct Session {
     /// The depth of the command whose values [`Session::note_journal`] keeps: 1 (the top-level
     /// command), or a step's while a batch runs it ([`Session::execute_step`]).
     note_depth: u32,
+    /// The running top-level query command changed the selection and is journaled like any other
+    /// command ([`Session::journal_query`]).
+    journal_query: bool,
+    /// From `edit.undoGroup.begin` to `edit.undoGroup.end`: the name of the undo step (`None`: after
+    /// its first edit). Each document opened or created meanwhile opens an undo group of its own
+    /// ([`Session::add_document`]). `None` otherwise.
+    pub(crate) explicit_undo_group: Option<Option<String>>,
     /// While `command.batch` runs: the documents its steps closed or replaced (Revert), which an
     /// error brings back; `None` otherwise.
     pub(crate) batch_stash: Option<Vec<DocState>>,
+    /// After `command.batch` ran its steps, until the top-level command notes its entry in the undo
+    /// groups: for each step, the documents ([`DocState::uid`]) whose undo groups it belongs to, and
+    /// the index of the document it left active when it changed the active document.
+    pub(crate) batch_steps: Option<Vec<(Vec<u64>, Option<usize>)>>,
     /// While [`Session::place_read`] runs `file.place`: the file read for it, which the command
     /// places instead of reading the file; `None` otherwise.
     pub(crate) place_hand_off: Option<cmd::place::PlaceRead>,
@@ -1527,6 +1594,7 @@ impl Session {
             freeform_point: None,
             style_libraries: Default::default(),
             symbol_libraries: Default::default(),
+            brush_libraries: Default::default(),
             libraries: Default::default(),
             pdf_preset_dir: None,
             profile_dir: None,
@@ -1536,7 +1604,10 @@ impl Session {
             ui_language: None,
             journal_note: Default::default(),
             note_depth: 1,
+            journal_query: false,
+            explicit_undo_group: None,
             batch_stash: None,
+            batch_steps: None,
             place_hand_off: None,
             queue_hand_off: None,
             place_cursor_requests: false,
@@ -1638,7 +1709,9 @@ impl Session {
             refresh_tree_text_bounds(tree);
         }
     }
-    /// Add a document and make it active.
+    /// Add a document and make it active. Between `edit.undoGroup.begin` and `edit.undoGroup.end`,
+    /// an undo group with the begun group's name opens in it: here outside a command, and after the
+    /// command that adds it otherwise ([`Session::execute`]).
     pub fn add_document(&mut self, mut doc: Document, path: Option<String>) -> usize {
         // Every edit is checked against the document before it, so the first one is within the cap
         // (importers and the native reader have seen to theirs already, with a warning).
@@ -1653,6 +1726,11 @@ impl Session {
         self.docs.push(st);
         let i = self.docs.len() - 1;
         self.active = Some(i);
+        if self.depth == 0
+            && let Some(label) = self.explicit_undo_group.clone()
+        {
+            self.begin_named_undo_group(label);
+        }
         i
     }
     /// Replace the document in tab `index` (File → Revert): new content, cleared history and
@@ -1677,6 +1755,17 @@ impl Session {
         st.revision = old.revision + 1;
         st.format = old.format;
         st.save_options = old.save_options.clone();
+        // The remembered artboard pick follows the artboards it named when the file read back has
+        // the artboards the document had at the save, in the same order and with the same ids (a
+        // native file keeps them; a PDF's pages get new ids in page order); otherwise it is left
+        // out.
+        if old.save_artboards.is_empty() || st.doc.artboards.iter().map(|a| a.id).eq(old.save_artboards.iter().copied()) {
+            st.save_artboards = old.save_artboards.clone();
+        } else {
+            for k in cmd::fileio::ARTBOARD_PARAMS {
+                st.save_options.remove(k);
+            }
+        }
         st.converted = old.converted;
         st.imported_from = old.imported_from.clone();
         st.import_losses = old.import_losses.clone();
@@ -1715,20 +1804,53 @@ impl Session {
         r
     }
 
+    /// Error, under the command's own id, at the first of `ids` that is malformed, names no node, or
+    /// names a layer or sublayer: a command in [`SELECTS_GIVEN_IDS`] acts on objects.
+    fn check_given_ids(&self, id: &str, params: &Value) -> Result<()> {
+        let (Some(st), Some(ids)) = (self.active(), params.get("ids")) else { return Ok(()) };
+        let Some(given) = ids.as_array() else { return cmd::checked_ids_param(self, params, "ids", id).map(drop) };
+        for value in given {
+            let node = cmd::checked_id(self, value, id)?;
+            if st.doc.node(node).is_some_and(|n| n.is_layer()) {
+                return Err(if id.starts_with("object.arrange.") {
+                    cmd::bad(id, format!("id {value} is a layer, not an object; move layers with layer.move"))
+                } else {
+                    cmd::bad(id, format!("id {value} is a layer, not an object"))
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Execute a command by id. This is THE entry point for every frontend.
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
-        let spec = find_command(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
+        let spec = find_command(id).ok_or_else(|| cmd::params::unknown_command(id))?;
         // The crate's own tests are the audit of the params descriptions (#1442): a key a test
         // passes that its command's description doesn't name fails the test.
         #[cfg(test)]
         self.check_params(id, params)?;
+        // Objects given as `id` (where it stands for `ids` of one) or as `ids` beside it are checked
+        // before anything else: a malformed one, or one naming no object, is an error under this
+        // command's id, never the selection in its place. `effect.apply {id: "stylize.dropShadow"}`
+        // without `effect` names the effect (its older key), not an object.
+        let effect_named = id == "effect.apply"
+            && params.get("effect").is_none()
+            && params.get("ids").is_none_or(Value::is_null)
+            && params.get("id").and_then(Value::as_str).is_some_and(|e| !e.starts_with('$'));
+        if cmd::params::id_stands_for_ids(spec.params) && !effect_named && self.active().is_some() {
+            cmd::given_objects(self, params, id)?;
+        }
+        if SELECTS_GIVEN_IDS.contains(&id) {
+            self.check_given_ids(id, params)?;
+        }
         // Clear's menu needs a selection; an agent supplying explicit targets only needs a
         // document. The command validates those targets before making any edit.
+        let given = given_ids(spec.params, params);
         let enabled = if id == "edit.clear" && params.get("ids").is_some() {
             cmd::has_doc(self)
-        } else if let Some(ids) = given_ids(spec.params, params) {
-            // Objects given as `ids` stand in for the selection: the command is enabled as it is
-            // with them selected (#1575).
+        } else if let Some(ids) = given.clone() {
+            // Objects given as `ids` (or `id`) stand in for the selection: the command is enabled
+            // as it is with them selected (#1575).
             self.enabled_with_selection(spec, ids)
         } else {
             (spec.enabled)(self)
@@ -1741,15 +1863,22 @@ impl Session {
         if self.depth == 0 {
             self.journal_note.clear();
             self.note_depth = 1;
+            self.journal_query = false;
             self.batch_stash = None;
+            self.batch_steps = None;
         }
-        // A selection-only command given `ids` selects them first, in the same undo step (#2130);
-        // when the command then fails, the selection (and the current layer selecting them made
-        // current) goes back to how it was, as when the ids are refused.
-        let select_first = SELECTS_GIVEN_IDS.contains(&id).then(|| params.get("ids")).flatten();
-        let selected_before = select_first.and(self.active()).map(|d| (d.uid, d.selection.clone(), d.active_layer));
+        // A selection-only command given `ids` (or `id`) selects them first, in the same undo step
+        // (#2130); when the command then fails, the selection (and the current layer selecting
+        // them made current) goes back to how it was, as when the ids are refused.
+        let select_first = SELECTS_GIVEN_IDS
+            .contains(&id)
+            .then(|| {
+                params.get("ids").filter(|v| !v.is_null()).cloned().or_else(|| given.map(|ids| ids.iter().map(|i| i.0).collect::<Vec<_>>().into()))
+            })
+            .flatten();
+        let selected_before = select_first.as_ref().and(self.active()).map(|d| (d.uid, d.selection.clone(), d.active_layer));
         let run = |s: &mut Session| {
-            if let Some(ids) = select_first {
+            if let Some(ids) = &select_first {
                 s.execute("select.set", &serde_json::json!({ "ids": ids }))?;
             }
             let r = (spec.run)(s, params);
@@ -1766,12 +1895,17 @@ impl Session {
         // The entries the command journals belong to the undo groups of the documents it edits, and to
         // the group of the document it starts in when it ends there too.
         let (doc, journal, grouped) = (self.active().map(|d| d.uid), self.journal.len(), self.undo_group_docs());
+        let open = (self.depth == 0).then(|| self.docs.iter().map(|d| d.uid).collect::<Vec<_>>());
         let r = if self.depth == 0 { self.run_guarded(id, run) } else { self.run_nested(run) };
         let r = r?;
         if self.depth == 0 {
             self.inherit_new_art();
         }
-        if spec.journal && self.depth == 0 && self.active().is_none_or(|d| d.interaction.is_none()) {
+        if let Some(open) = open {
+            self.open_undo_groups_in_new_documents(&open);
+        }
+        let journaled = spec.journal || (self.depth == 0 && std::mem::take(&mut self.journal_query));
+        if journaled && self.depth == 0 && self.active().is_none_or(|d| d.interaction.is_none()) {
             let p = self.noted(params);
             self.journal.push((id.to_string(), p));
         }
@@ -1794,6 +1928,14 @@ impl Session {
     pub fn note_journal(&mut self, key: &str, value: Value) {
         if self.depth == self.note_depth {
             self.journal_note.insert(key.to_string(), value);
+        }
+    }
+
+    /// Journal the running query command when it is the top-level command: it changed the
+    /// selection (`document.find {select: true}`), so an action recorded around it repeats that.
+    pub(crate) fn journal_query(&mut self) {
+        if self.depth == 1 {
+            self.journal_query = true;
         }
     }
 
@@ -1885,7 +2027,7 @@ impl Session {
         if !self.previewing && cmd::typing_in_progress(self) {
             cmd::settle_interaction(self)?;
         }
-        let guides_locked = self.menu.guides_locked;
+        let menu = self.menu.clone();
         let st = self.doc_mut()?;
         let before = st.doc.clone();
         let before_sel = st.selection.clone();
@@ -1911,6 +2053,9 @@ impl Session {
                     cmd::inline::refresh(&before, Arc::make_mut(&mut st.doc));
                     // Text Wrap: area type follows its wrap objects; then threads re-flow.
                     cmd::textwrap::refresh(Arc::make_mut(&mut st.doc));
+                    // Type in no thread numbers its list paragraphs from 1 (before the mask copies
+                    // its editing layer's art).
+                    cmd::threads::restart_unthreaded_counts(&mut st.doc);
                     // Opacity-mask editing: the mask follows its art on the editing layer.
                     if st.doc.mask_edit.is_some() {
                         cmd::maskedit::sync(Arc::make_mut(&mut st.doc));
@@ -1942,10 +2087,10 @@ impl Session {
         match result {
             Ok(v) => {
                 st.selection.prune(&st.doc);
-                // An edit that selects what it unlocks, shows or pastes leaves locked guides out.
-                if guides_locked {
-                    deselect_guides(&st.doc, &mut st.selection);
-                }
+                // An edit that selects what it unlocks, shows or pastes leaves locked guides out,
+                // and one that selects the slices it makes leaves them out while they are locked
+                // or hidden.
+                deselect_hidden(&menu, &st.doc, &mut st.selection);
                 // The art on a locked artboard can't stay selected, however it got there, except
                 // the new art this edit made and new art still selected.
                 st.protect_locked_artboards(&before_sel.objects, &before_sel.new_art, Some(&*before));
@@ -1998,16 +2143,15 @@ impl Session {
     /// Change only the selection (not an undo step).
     pub fn select(&mut self, f: impl FnOnce(&Document, &mut Selection)) -> Result<()> {
         self.active_appearance_item = None;
-        let guides_locked = self.menu.guides_locked;
+        let menu = self.menu.clone();
         let st = self.doc_mut()?;
         let before = st.selection.objects.clone();
         let new_art = st.selection.new_art.clone();
         f(&st.doc, &mut st.selection);
         st.selection.prune(&st.doc);
-        // Lock Guides locks the paths made into guides too (#1534), whatever selects them.
-        if guides_locked {
-            deselect_guides(&st.doc, &mut st.selection);
-        }
+        // Lock Guides locks the paths made into guides too (#1534), and Lock Slices and Hide
+        // Slices keep the slices out, whatever selects them.
+        deselect_hidden(&menu, &st.doc, &mut st.selection);
         // The art on a locked artboard can't be selected, whatever selects it, except new art
         // that was selected and still is.
         st.protect_locked_artboards(&before, &new_art, None);
@@ -2069,6 +2213,7 @@ impl Session {
     /// Re-apply `cmd` on top of the interaction snapshot (replacing the previous preview).
     pub fn preview(&mut self, cmd: &str, params: &Value) -> Result<Value> {
         {
+            let menu = self.menu.clone();
             let st = self.doc_mut()?;
             let Some(it) = &st.interaction else { return Err(EngineError::Other("no interaction in progress".into())) };
             // Undoing the previous preview counts as a change, so views redraw even when the command
@@ -2081,6 +2226,9 @@ impl Session {
             if selection_changed {
                 st.selection.clone_from(&it.selection);
             }
+            // Guides locked and slices locked or hidden during the interaction stay deselected,
+            // even when the preview fails.
+            deselect_hidden(&menu, &st.doc, &mut st.selection);
             cmd::globaledit::follow_history(st);
         }
         // The previous preview's paint is undone with it.
@@ -2156,13 +2304,11 @@ impl Session {
     pub fn cancel_interaction(&mut self) -> Result<()> {
         self.clear_deferred_overlay_cache();
         self.pending_paint = None;
-        let guides_locked = self.menu.guides_locked;
+        let menu = self.menu.clone();
         let st = self.doc_mut()?;
         st.undo_interaction();
-        // Guides locked during the interaction stay deselected.
-        if guides_locked {
-            deselect_guides(&st.doc, &mut st.selection);
-        }
+        // Guides locked and slices locked or hidden during the interaction stay deselected.
+        deselect_hidden(&menu, &st.doc, &mut st.selection);
         Ok(())
     }
 
@@ -2185,7 +2331,21 @@ impl Session {
         if let Some(st) = self.active_mut()
             && st.undo_group.is_none()
         {
-            st.undo_group = Some(UndoGroup { first: None, journal: vec![], label });
+            st.undo_group = Some(UndoGroup { first: None, journal: vec![], steps: vec![], label });
+        }
+    }
+
+    /// Between `edit.undoGroup.begin` and `edit.undoGroup.end`, open an undo group with the begun
+    /// group's name in each document that the top-level command just run opened or created (its
+    /// [`DocState::uid`] is not in `open`). The group takes the edits after that command: the
+    /// command's own edits there stay its undo step, and a canceled group keeps them, as the journal
+    /// entry that made the document stays.
+    fn open_undo_groups_in_new_documents(&mut self, open: &[u64]) {
+        let Some(label) = &self.explicit_undo_group else { return };
+        for st in &mut self.docs {
+            if !open.contains(&st.uid) && st.undo_group.is_none() {
+                st.undo_group = Some(UndoGroup { first: None, journal: vec![], steps: vec![], label: label.clone() });
+            }
         }
     }
 
@@ -2198,11 +2358,13 @@ impl Session {
     /// each document in `grouped` ([`Session::undo_group_docs`] before the entries) that they changed,
     /// each group they opened and edited, and the group of the document with [`DocState::uid`] `doc`
     /// when they started in it and it is still the active one. A cancel drops them. The last entry of a command that changed the
-    /// active document keeps the index of the document it left active.
+    /// active document keeps the index of the document it left active. A `command.batch` entry also
+    /// keeps, in each group, the steps that belong to it ([`Session::batch_steps`]).
     fn journal_in_undo_groups(&mut self, doc: Option<u64>, grouped: &[(u64, *const Document)], from: usize) {
         let to = self.journal.len();
         let active = self.active().map(|d| d.uid);
         let switched = if active == doc { None } else { self.active };
+        let batch = self.batch_steps.take().filter(|_| to > from && self.journal.get(to - 1).is_some_and(|(id, _)| id == "command.batch"));
         for st in &mut self.docs {
             let Some(g) = &mut st.undo_group else { continue };
             let started = doc == Some(st.uid) && active == doc;
@@ -2216,15 +2378,33 @@ impl Session {
                 let noted = g.journal.partition_point(|&(n, _)| n < from);
                 g.journal.truncate(noted);
                 g.journal.extend((from..to).map(|n| (n, switched.filter(|_| n + 1 == to))));
+                g.steps.retain(|&(n, _)| n < from);
+                if let Some(steps) = &batch {
+                    let own = steps.iter().enumerate().filter(|(_, (uids, _))| uids.contains(&st.uid));
+                    g.steps.push((to - 1, own.map(|(i, &(_, switched))| (i, switched)).collect()));
+                }
             }
         }
     }
 
     /// Close the open undo groups: their edits stay one undo step or, `cancel`led (Escape), are
-    /// undone and dropped from the journal.
+    /// undone and dropped from the journal. A group begun with `edit.undoGroup.begin` ends too, so
+    /// documents opened after this open no undo group.
     pub fn end_undo_group(&mut self, cancel: bool) {
+        self.explicit_undo_group = None;
+        self.close_undo_groups(cancel, None);
+    }
+
+    /// [`Session::end_undo_group`] without ending a group begun with `edit.undoGroup.begin`, for the
+    /// document with [`DocState::uid`] `only` alone when given. The groups that stay open follow the
+    /// journal entries and batch steps of theirs that a cancel renumbers.
+    fn close_undo_groups(&mut self, cancel: bool, only: Option<u64>) {
         let mut journal: Vec<(usize, Option<usize>)> = vec![];
+        let mut steps: Vec<BatchSteps> = vec![];
         for st in &mut self.docs {
+            if only.is_some_and(|uid| uid != st.uid) {
+                continue;
+            }
             let Some(g) = st.undo_group.take() else { continue };
             // Only while the group's step is still the newest one.
             if cancel
@@ -2234,19 +2414,27 @@ impl Session {
             {
                 st.doc = e.doc;
                 st.selection = Arc::unwrap_or_clone(e.selection);
-                if self.menu.guides_locked {
-                    deselect_guides(&st.doc, &mut st.selection);
-                }
+                deselect_hidden(&self.menu, &st.doc, &mut st.selection);
                 st.sync_new_art();
                 cmd::globaledit::follow_history(st);
                 st.revision += 1;
                 // The journal drops only the canceled groups' own entries and keeps the ones made in other documents meanwhile.
                 journal.extend(g.journal);
+                steps.extend(g.steps);
             }
         }
         // A batch that edited two of the documents is in both groups.
         journal.sort_unstable();
         journal.dedup_by_key(|&mut (n, _)| n);
+        // A batch with steps outside the canceled groups keeps those steps.
+        let mut rewritten: Vec<(usize, Vec<Option<usize>>)> = vec![];
+        journal.retain(|&(n, _)| match self.keep_batch_steps(n, &steps) {
+            Some(kept) => {
+                rewritten.push((n, kept));
+                false
+            }
+            None => true,
+        });
         // An entry that changed the active document becomes that change, so the entries after it run
         // in the same document when the journal is replayed.
         for &(n, index) in &journal {
@@ -2256,21 +2444,61 @@ impl Session {
         }
         let gone: Vec<usize> = journal.into_iter().filter(|(_, index)| index.is_none()).map(|(n, _)| n).collect();
         self.journal.remove(&gone);
+        let below = |n: usize| gone.partition_point(|&m| m < n);
+        for g in self.docs.iter_mut().filter_map(|st| st.undo_group.as_mut()) {
+            g.journal.retain(|(n, _)| gone.binary_search(n).is_err());
+            for (n, _) in &mut g.journal {
+                *n -= below(*n);
+            }
+            g.steps.retain(|(n, _)| gone.binary_search(n).is_err());
+            for (n, own) in &mut g.steps {
+                if let Some((_, kept)) = rewritten.iter().find(|(r, _)| r == n) {
+                    own.retain_mut(|(i, _)| kept.get(*i).copied().flatten().map(|k| *i = k).is_some());
+                }
+                *n -= below(*n);
+            }
+        }
+    }
+
+    /// When journal entry `n` is a `command.batch` with `steps` noted in canceled undo groups and
+    /// other steps that are not `document.activate`: rewrite its `commands` without the noted steps
+    /// (a noted step that changed the active document becomes that change) → each step's number in
+    /// the rewritten `commands`, `None` for a noted step. `None` leaves the entry to be dropped as a
+    /// whole.
+    fn keep_batch_steps(&mut self, n: usize, steps: &[BatchSteps]) -> Option<Vec<Option<usize>>> {
+        let noted: Vec<(usize, Option<usize>)> = steps.iter().filter(|(e, _)| *e == n).flat_map(|(_, s)| s.iter().copied()).collect();
+        let (id, entry) = self.journal.get(n).filter(|(id, _)| id == "command.batch" && steps.iter().any(|(e, _)| *e == n))?;
+        let commands = entry.get("commands").and_then(Value::as_array)?;
+        let kept = |i: usize| !noted.iter().any(|&(s, _)| s == i);
+        let activate = |c: &Value| c.get("command").and_then(Value::as_str) == Some("document.activate");
+        if commands.iter().enumerate().all(|(i, c)| !kept(i) || activate(c)) {
+            return None;
+        }
+        let (mut rewritten, mut numbers) = (Vec::with_capacity(commands.len()), Vec::with_capacity(commands.len()));
+        for (i, c) in commands.iter().enumerate() {
+            if kept(i) {
+                numbers.push(Some(rewritten.len()));
+                rewritten.push(c.clone());
+            } else {
+                numbers.push(None);
+                if let Some(index) = noted.iter().find(|&&(s, _)| s == i).and_then(|&(_, index)| index) {
+                    rewritten.push(serde_json::json!({ "command": "document.activate", "params": { "index": index } }));
+                }
+            }
+        }
+        let (id, mut entry) = (id.clone(), entry.clone());
+        if let Some(o) = entry.as_object_mut() {
+            o.insert("commands".into(), Value::Array(rewritten));
+        }
+        self.journal.replace(n, (id, entry));
+        Some(numbers)
     }
 
     /// [`Session::end_undo_group`] for the open document with [`DocState::uid`] `uid` only (it may
     /// have closed since): its open undo group closes, and undo groups open in other documents stay
     /// open.
     fn end_document_undo_group(&mut self, uid: u64, cancel: bool) {
-        // The other documents' groups are set aside while `end_undo_group` closes this one's.
-        let others: Vec<(u64, UndoGroup)> =
-            self.docs.iter_mut().filter(|st| st.uid != uid).filter_map(|st| Some((st.uid, st.undo_group.take()?))).collect();
-        self.end_undo_group(cancel);
-        for (other, g) in others {
-            if let Some(st) = self.document_mut(other) {
-                st.undo_group = Some(g);
-            }
-        }
+        self.close_undo_groups(cancel, Some(uid));
     }
 
     /// Make the edits that follow in the active document one undo step, until
@@ -2292,13 +2520,13 @@ impl Session {
     /// closes it. A scope that joined an open group leaves the group open; with `cancel`, it puts the
     /// document and its selection back as they were when the scope began and cuts the journal back to
     /// where the scope began (only while the group's step is still the newest one), and an undo step
-    /// that the scope's first edit recorded goes too.
+    /// that the scope's first edit recorded goes too. The open undo groups drop the cut entries.
     pub fn end_undo_scope(&mut self, scope: UndoScope, cancel: bool) {
         let Some((doc, selection, first)) = scope.joined else {
             self.end_document_undo_group(scope.uid, cancel);
             return;
         };
-        let guides_locked = self.menu.guides_locked;
+        let menu = self.menu.clone();
         let Some(st) = self.document_mut(scope.uid) else { return };
         let Some(g) = &mut st.undo_group else { return };
         let newest = g.first.as_ref().is_some_and(|f| st.history.undo.last().is_some_and(|e| Arc::ptr_eq(&e.doc, f)));
@@ -2317,12 +2545,15 @@ impl Session {
         st.doc = doc;
         st.selection = selection;
         cmd::globaledit::follow_history(st);
-        if guides_locked {
-            deselect_guides(&st.doc, &mut st.selection);
-        }
+        deselect_hidden(&menu, &st.doc, &mut st.selection);
         st.history.recost_last(&st.doc);
         st.revision += 1;
         self.journal.truncate(scope.journal);
+        // The next commands take the cut entries' numbers, so no open undo group keeps them.
+        for g in self.docs.iter_mut().filter_map(|st| st.undo_group.as_mut()) {
+            g.journal.retain(|&(n, _)| n < scope.journal);
+            g.steps.retain(|&(n, _)| n < scope.journal);
+        }
     }
 
     /// Commands with enablement (for menus, palette, MCP `list_commands`).
@@ -2385,6 +2616,8 @@ mod tests_blendfidelity;
 mod tests_blendopts;
 #[cfg(test)]
 mod tests_blendspine;
+#[cfg(test)]
+mod tests_brushlib;
 #[cfg(test)]
 mod tests_brushsym;
 #[cfg(test)]
@@ -2739,8 +2972,16 @@ pub(crate) const SELECTS_GIVEN_IDS: &[&str] = &[
 ];
 
 /// The non-empty `ids` given to a command whose params description names `ids` as a key (the
-/// key callers outside the app may pass it, [`cmd::params::takes_key`]).
+/// key callers outside the app may pass it, [`cmd::params::takes_key`]), or its `id` as `ids` of
+/// one when no `ids` are given and the description takes `id` so
+/// ([`cmd::params::id_stands_for_ids`]), as [`cmd::targets`] reads them.
 fn given_ids(description: &'static str, params: &Value) -> Option<Vec<NodeId>> {
-    let ids = cmd::ids_param(params, "ids").filter(|ids| !ids.is_empty())?;
-    cmd::params::takes_key(description, "ids").then_some(ids)
+    if !cmd::params::takes_key(description, "ids") {
+        return None;
+    }
+    match params.get("ids").filter(|v| !v.is_null()) {
+        Some(_) => cmd::ids_param(params, "ids"),
+        None => cmd::id_param(params, "id").filter(|_| cmd::params::id_stands_for_ids(description)).map(|id| vec![id]),
+    }
+    .filter(|ids| !ids.is_empty())
 }
