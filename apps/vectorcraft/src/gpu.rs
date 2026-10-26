@@ -59,6 +59,11 @@ use std::time::{Duration, Instant};
 use eframe::egui_wgpu::NativeAdapterSelectorMethod;
 use eframe::wgpu::{self, Backend, Backends, DeviceType, PowerPreference};
 
+pub fn configure_instance(descriptor: &mut wgpu::InstanceDescriptor, backends: Backends, compiler: wgpu::Dx12Compiler) {
+    descriptor.backends = backends;
+    descriptor.backend_options.dx12.shader_compiler = compiler;
+}
+
 /// The adapters a restart leaves out, those the window failed on, as comma-separated [`key`]s
 /// (`Vulkan:1002:164e`, `Metal:Intel Iris Pro Graphics`). Set by the app itself when it starts
 /// again.
@@ -880,6 +885,23 @@ fn restart(skip: &str) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instance_configuration_preserves_validation_flags() {
+        use eframe::wgpu::{Dx12Compiler, InstanceDescriptor, InstanceFlags, MetalShadingLanguageVersion as Msl};
+        for flags in [InstanceFlags::VALIDATION_INDIRECT_CALL, InstanceFlags::empty(), InstanceFlags::default()] {
+            let mut descriptor = InstanceDescriptor::new_without_display_handle();
+            descriptor.flags = flags;
+            descriptor.backend_options.metal.msl_version = Some(Msl::Version3_1);
+            descriptor.backend_options.metal.max_msl_version = Some(Msl::Version3_0);
+            super::configure_instance(&mut descriptor, super::Backends::METAL, Dx12Compiler::Fxc);
+            assert_eq!(descriptor.flags, flags);
+            assert_eq!(descriptor.backend_options.metal.msl_version, Some(Msl::Version3_1));
+            assert_eq!(descriptor.backend_options.metal.max_msl_version, Some(Msl::Version3_0));
+            assert_eq!(descriptor.backends, super::Backends::METAL);
+            assert!(matches!(descriptor.backend_options.dx12.shader_compiler, Dx12Compiler::Fxc));
+        }
+    }
 
     fn gpu(name: &str, backend: Backend, device_type: DeviceType) -> Candidate {
         Candidate { key: format!("{backend:?}:{name}"), name: name.into(), backend, device_type, pci: (0, 0), presents: true }

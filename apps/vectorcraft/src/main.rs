@@ -1000,18 +1000,10 @@ fn main() -> std::process::ExitCode {
         // Only adapters that can show the window, in the order `gpu` gives (#306, #502).
         if let eframe::egui_wgpu::WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup {
             create.native_adapter_selector = Some(gpu::selector(power, displays, compositor, left_out.adapters.clone(), startup.clone()));
-            // Nothing draws or dispatches indirectly, so wgpu's check of indirect arguments only
-            // costs a compute shader at start-up, one some drivers can't compile (OCLP-patched
-            // Metal on an Iris Pro, #651). `WGPU_VALIDATION_INDIRECT_CALL=1` turns it back on.
-            create.instance_descriptor.flags =
-                (eframe::wgpu::InstanceFlags::from_build_config() - eframe::wgpu::InstanceFlags::VALIDATION_INDIRECT_CALL).with_env();
-            create.instance_descriptor.backends =
-                left_out.backends(gpu::backends(create.instance_descriptor.backends, std::env::var_os("WGPU_BACKEND").is_some()));
-            // DX12 shaders compile with FXC, part of Windows: wgpu's default loads whichever
-            // dxcompiler.dll the search path finds, and one without its dxil.dll fails every shader,
-            // losing the device before the first frame (#1194). `WGPU_DX12_COMPILER` picks another.
-            create.instance_descriptor.backend_options.dx12.shader_compiler =
-                eframe::wgpu::Dx12Compiler::from_env().unwrap_or(eframe::wgpu::Dx12Compiler::Fxc);
+            let backends = left_out.backends(gpu::backends(create.instance_descriptor.backends, std::env::var_os("WGPU_BACKEND").is_some()));
+            // Keep FXC as the default on Windows (#1194), unless explicitly overridden.
+            let compiler = eframe::wgpu::Dx12Compiler::from_env().unwrap_or(eframe::wgpu::Dx12Compiler::Fxc);
+            gpu::configure_instance(&mut create.instance_descriptor, backends, compiler);
             // The window's surface may be as large as the adapter allows, not eframe's fixed
             // 8192 px: a window stretched over several monitors, or grown by a display scale
             // change, otherwise fails to configure its surface and the app closes (#1459).

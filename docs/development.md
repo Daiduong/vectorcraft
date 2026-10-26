@@ -74,7 +74,7 @@ The canvas is rasterized on the CPU (`vectorcraft-render`, vello_cpu); the GPU (
   - `WGPU_POWER_PREF`: `low`, `high` or `none` (the system's order).
   - `WGPU_ADAPTER_NAME`: part of an adapter's name, any case (`WGPU_ADAPTER_NAME=nvidia`, `=radv`, `=intel`); the names are in the log.
   - `WGPU_BACKEND`: the backends to use, such as `vulkan`, `dx12`, `metal` or `gl`.
-  - `WGPU_VALIDATION_INDIRECT_CALL=1`: turns wgpu's check of indirect draw arguments back on. VectorCraft draws nothing indirectly and turns it off, since the compute shader it needs fails to compile on some drivers (#651).
+  - `WGPU_VALIDATION_INDIRECT_CALL`: explicitly enables (`1`) or disables (`0`) wgpu's internal indirect-call validation. The shared [OCLP wgpu proposal](oclp-wgpu-fork.md) preserves the instance's configured flags instead of disabling this check at startup.
   - On Linux with Mesa, `MESA_VK_DEVICE_SELECT=10de:2f04!` (vendor:device as `vulkaninfo --summary` or `lspci -nn` show it) leaves only that GPU to Vulkan, and `DRI_PRIME=1` picks the other GPU.
 - Help › About and the control channel's `ui.inspect` (`graphicsAdapter`) show the adapter in use, and the app logs it at startup.
 

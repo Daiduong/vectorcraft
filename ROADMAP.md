@@ -1,5 +1,7 @@
 # VectorCraft Roadmap
 
+> **Last updated:** 2026-10-26 · **Change:** minor (shared OCLP wgpu compatibility proposal; scores and estimates unchanged).
+
 - PDF.R1: editable PDF import uses the shared reader, scans page content in windows, and rejects known incomplete input before returning a document.
 - PDF.W1: PDF export and print composition use the shared optional writer for configuration, metadata, font preparation and guarded finalization; drawing and output policy remain app-owned.
 
@@ -54,7 +56,7 @@ everything is measured from our code against Illustrator's public documentation.
 | Features (depth) | 75% | 220–360 | [target-app-parity.md](docs/target-app-parity.md) |
 | UI/UX fidelity | 55% | 70–110 | [ui-parity.md](docs/ui-parity.md) |
 | File formats | 75% | 15–30 | [file-format-parity.md](docs/file-format-parity.md) |
-| Hardware (GPU, pen, touch, displays) | 35% | 25–45 | [hardware-parity.md](docs/hardware-parity.md) |
+| Hardware (GPU, pen, touch, displays) | 35% | 25–45 | [hardware-parity.md](docs/hardware-parity.md); [OCLP proposal](docs/oclp-wgpu-fork.md) |
 | Localization (12 key languages) | 74% (measured) | 50–85 | [localization-parity.md](docs/localization-parity.md) |
 | Performance | ~60% | 15–25 | [gaps.md › G15](docs/gaps.md#g15-performance-budgets-and-a-gpu-renderer) |
 | Stability | ~60% | 30–50 | [gaps.md › G10](docs/gaps.md#g10-launch-and-stability-on-real-machines) |
@@ -198,6 +200,7 @@ The full pre-standard record of what landed is kept in [docs/roadmap.md](docs/ro
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-26 | minor | Propose the shared OCLP wgpu backport with internal validation preserved; qualification and known compiler-probe delay documented; scores and estimates unchanged. |
 | 2026-10-23 | minor | Progress log row for Pathfinder › Trap; Live vector effects hours 6–10 → 4–8; headline numbers unchanged. |
 | 2026-10-23 | minor | Progress log row for OpenType SVG colour fonts; headline numbers unchanged. |
 | 2026-10-23 | minor | Progress log row for COLR colour fonts; headline numbers unchanged. |
