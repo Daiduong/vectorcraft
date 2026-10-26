@@ -8,6 +8,7 @@
 
 mod about;
 pub mod action_batch;
+pub mod action_set_options;
 pub mod artboard_options;
 pub mod blend_options;
 mod brush_art_options;
@@ -88,9 +89,10 @@ pub(crate) mod save_options;
 mod save_pdf;
 pub mod save_style_library;
 pub mod save_swatch_library;
+pub mod save_symbol_library;
 pub mod script_check;
 pub mod shape_builder_options;
-mod shapes;
+pub(crate) mod shapes;
 pub mod shortcut_import;
 pub(crate) mod simplify_slider;
 pub mod slices;
@@ -284,6 +286,7 @@ registry! {
     FlattenTransparency: [flatten::KIND] => flatten::SPEC,
     FlattenerPresets: [flattener_presets::KIND] => flattener_presets::SPEC,
     SaveStyleLibrary: [save_style_library::KIND] => save_style_library::SPEC,
+    SaveSymbolLibrary: [save_symbol_library::KIND] => save_symbol_library::SPEC,
     Expand: [expand::KIND] => expand::SPEC,
     SpotColors: [spot_colors::KIND] => spot_colors::SPEC,
     TransformEach: [transform_each::KIND] => transform_each::SPEC,
@@ -316,6 +319,7 @@ registry! {
     PlacementOptions: [placement_options::KIND] => placement_options::SPEC,
     Package: [package::KIND] => package::SPEC,
     ActionBatch: [action_batch::KIND] => action_batch::SPEC,
+    ActionSetOptions: [action_set_options::KIND] => action_set_options::SPEC,
     SliceOptions: [slices::OPTIONS] => slices::OPTIONS_SPEC,
     DivideSlices: [slices::DIVIDE] => slices::DIVIDE_SPEC,
     EpsOptions: [eps_options::KIND] => eps_options::SPEC,
@@ -444,7 +448,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
     confirm::show_waiting(app);
     // The kind of dialog shown last frame: a different one (or none) means this one just opened, and
     // its first field is to take the keyboard focus (`focus_id`, until a field takes it).
-    let (shown_id, focus_id) = (egui::Id::new("dialog-shown"), egui::Id::new("dialog-focus-pending"));
+    let (shown_id, focus_id) = (egui::Id::unique("dialog-shown"), egui::Id::unique("dialog-focus-pending"));
     let Some(mut d) = app.ui.dialog.clone() else {
         revolve_gizmo::clear(ctx);
         app.ui.dialog_file = None;
@@ -490,7 +494,7 @@ pub fn show(app: &mut VectorcraftApp, ctx: &egui::Context) {
         revolve_gizmo::show(app, ctx, &mut d);
     }
     let initial = if revolves { egui::vec2((ctx.content_rect().width() / 2.0 - 226.0).max(0.0), -40.0) } else { egui::vec2(0.0, -40.0) };
-    let id = egui::Id::new(("dialog", d.kind.as_str()));
+    let id = egui::Id::unique(("dialog", d.kind.as_str()));
     let id = if revolves { id.with("revolve") } else { id };
     modal::show_at(ctx, &heading, id, initial, MARGIN, |ui| {
         // Never wider than the window (a large UI scale in a small window): the text wraps.
@@ -585,6 +589,8 @@ pub(crate) fn mixed_dropdown(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_accessibility;
 #[cfg(test)]
 mod tests_export;
 #[cfg(test)]

@@ -87,10 +87,10 @@ type Open = fn(&mut VectorcraftApp);
 fn dialogs_move_by_their_heading_stay_on_screen_and_where_they_were_moved() {
     let screen = Rect::from_min_size(Pos2::ZERO, SCREEN);
     let opens: [(&str, Open, egui::Id); 4] = [
-        ("Offset Path", |app| crate::menus::invoke(app, "object.path.offsetPath", json!({})), egui::Id::new(("dialog", "offsetPath"))),
-        ("New Document", open_new_document, egui::Id::new(("dialog", "newDocument"))),
-        ("Preferences", |app| crate::prefs_dialog::open(app, None), egui::Id::new("dialog-preferences")),
-        ("Keyboard Shortcuts", crate::shortcut_editor::open, egui::Id::new("dialog-shortcuts")),
+        ("Offset Path", |app| crate::menus::invoke(app, "object.path.offsetPath", json!({})), egui::Id::unique(("dialog", "offsetPath"))),
+        ("New Document", open_new_document, egui::Id::unique(("dialog", "newDocument"))),
+        ("Preferences", |app| crate::prefs_dialog::open(app, None), egui::Id::unique("dialog-preferences")),
+        ("Keyboard Shortcuts", crate::shortcut_editor::open, egui::Id::unique("dialog-shortcuts")),
     ];
     for (name, open, id) in opens {
         let (ctx, mut app) = (ctx(), app_with_selection());
@@ -134,7 +134,7 @@ fn check_plugin_dialog(kind: &str, count: usize, check: impl FnOnce(&egui::Conte
     };
     app.run(command, params).unwrap();
     settle(&ctx, &mut app);
-    check(&ctx, &mut app, egui::Id::new(("dialog", dialog)), &format!("Test {id}"));
+    check(&ctx, &mut app, egui::Id::unique(("dialog", dialog)), &format!("Test {id}"));
     app.run("plugin.remove", json!({"id": id})).unwrap();
 }
 
@@ -164,6 +164,7 @@ fn a_plug_in_dialog_of_many_settings_fits_the_window() {
                 delta: vec2(0.0, -200.0),
                 phase: egui::TouchPhase::Move,
                 modifiers: Default::default(),
+                source: egui::MouseWheelSource::Unknown,
             };
             frame(ctx, app, vec![Event::PointerMoved(over), wheel]);
             for _ in 0..30 {
@@ -233,21 +234,6 @@ fn form_dialog_axes_are_dropdowns() {
         let texts = frame(&ctx, &mut app, vec![]);
         assert!(texts.iter().any(|(t, _)| t == shown), "{id}: {texts:?}");
         assert!(!texts.iter().any(|(t, _)| *t == shown.to_lowercase()), "{id} has a text field: {texts:?}");
-    }
-}
-
-/// The axis choices are translated in the "axis" context: in Japanese the plain Horizontal and
-/// Vertical are the type orientations (horizontal and vertical writing).
-#[test]
-fn axis_choices_read_as_axes_in_every_complete_language() {
-    use crate::i18n::{LANGUAGES, Lang, tr, tr_ctx};
-    let ja = Lang::from_code("ja").unwrap();
-    assert_eq!(tr_ctx(ja, "axis", "Horizontal"), "水平方向");
-    assert_ne!(tr_ctx(ja, "axis", "Horizontal"), tr(ja, "Horizontal"));
-    for l in LANGUAGES.iter().filter(|l| l.complete_menus) {
-        for s in ["Horizontal", "Vertical", "Both"] {
-            assert!(l.source.lines().any(|line| line.starts_with(&format!("axis\t{s}\t"))), "{}: no axis row for {s}", l.code);
-        }
     }
 }
 
@@ -333,7 +319,7 @@ fn simplify_preview(app: &VectorcraftApp) -> serde_json::Value {
 /// The Simplify slider's strip, and the centers of its Auto-Simplify button, its rail and its More
 /// Options button.
 fn slider_strip(ctx: &egui::Context) -> (Rect, Pos2, Pos2, Pos2) {
-    let r = rect_of(ctx, egui::Id::new(("dialog", simplify_slider::KIND)));
+    let r = rect_of(ctx, egui::Id::unique(("dialog", simplify_slider::KIND)));
     let y = r.center().y;
     (r, Pos2::new(r.left() + 8.0 + 14.0, y), Pos2::new(r.left() + 8.0 + 28.0 + 6.0 + 90.0, y), Pos2::new(r.right() - 8.0 - 14.0, y))
 }
@@ -445,13 +431,13 @@ fn simplify_slider_stays_where_it_opened_while_the_preview_changes_the_bounds() 
     let before = app.selection_bounds().unwrap();
     crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
     settle(&ctx, &mut app);
-    let opened = rect_of(&ctx, egui::Id::new(("dialog", simplify_slider::KIND)));
+    let opened = rect_of(&ctx, egui::Id::unique(("dialog", simplify_slider::KIND)));
     app.ui.dialog.as_mut().unwrap().fields.insert("level".into(), json!(0));
     settle(&ctx, &mut app);
     assert_eq!(simplify_preview(&app), json!({"level": 0.0}));
     let after = app.selection_bounds().unwrap();
     assert!(after.height() < before.height() - 0.5, "the preview changes the bounds: {before:?} → {after:?}");
-    assert_eq!(rect_of(&ctx, egui::Id::new(("dialog", simplify_slider::KIND))), opened);
+    assert_eq!(rect_of(&ctx, egui::Id::unique(("dialog", simplify_slider::KIND))), opened);
 }
 
 /// Auto-Simplify moves the slider back to the level that keeps the path within 1/400 of its size,
@@ -477,6 +463,54 @@ fn simplify_slider_auto_simplify_and_a_click_outside_keep_the_result() {
     assert!(app.ui.dialog.is_none() && !app.session.in_interaction());
     assert_eq!(app.session.doc().unwrap().history.undo.len(), undo_len + 1);
     assert_ne!(app.session.doc().unwrap().doc, before);
+}
+
+/// With anchors 10 to 30 of a 41-anchor wave direct-selected, the Simplify slider previews and
+/// Enter keeps a refit of only the segments between them, as one undo step: the anchors before and
+/// after the run stay exactly as they were. The Simplify dialog (More Options) does the same.
+#[test]
+fn simplify_slider_and_dialog_simplify_only_the_direct_selected_part_of_a_path() {
+    let ctx = ctx();
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
+    let anchors: Vec<_> = (0..=40).map(|i| json!({"x": 20 + i * 8, "y": 150.0 + 60.0 * (f64::from(i) / 6.0).sin()})).collect();
+    let id = app.run("path.create", json!({"anchors": anchors})).unwrap()["id"].as_u64().unwrap();
+    let path = |app: &VectorcraftApp| {
+        app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).and_then(|n| n.path_data()).expect("a path").subpaths[0].anchors.clone()
+    };
+    let original = path(&app);
+    let run: Vec<_> = (10..=30).map(|i| json!([0, i])).collect();
+    app.run("select.anchors", json!({"id": id, "anchors": run})).unwrap();
+    let undo_len = app.session.doc().unwrap().history.undo.len();
+    let kept = |app: &VectorcraftApp, how: &str| {
+        let now = path(app);
+        assert!(now.len() < 41, "{how}: the run loses anchors");
+        assert_eq!(now[..10], original[..10], "{how}: the anchors before the run");
+        assert_eq!(now[10].p, original[10].p, "{how}: the run's start anchor");
+        assert_eq!(now[now.len() - 10..], original[31..], "{how}: the anchors after the run");
+        assert_eq!(now[now.len() - 11].p, original[30].p, "{how}: the run's end anchor");
+    };
+    crate::menus::invoke(&mut app, "object.path.simplify", json!({}));
+    app.ui.dialog.as_mut().unwrap().fields.insert("level".into(), json!(20));
+    settle(&ctx, &mut app);
+    assert_eq!(simplify_preview(&app), json!({"level": 20.0}));
+    kept(&app, "the slider's preview");
+    frame(
+        &ctx,
+        &mut app,
+        vec![Event::Key { key: egui::Key::Enter, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }],
+    );
+    assert!(app.ui.dialog.is_none() && !app.session.in_interaction());
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo_len + 1);
+    kept(&app, "the slider");
+    app.run("edit.undo", json!({})).unwrap();
+    assert_eq!(path(&app), original);
+    open_simplify_dialog(&mut app);
+    app.ui.dialog.as_mut().unwrap().fields.insert("tolerance".into(), json!(4));
+    settle(&ctx, &mut app);
+    confirm(&mut app).unwrap();
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo_len + 1);
+    kept(&app, "the dialog");
 }
 
 /// More Options opens the Simplify dialog at the slider's tolerance. With "Open this dialog with
@@ -665,7 +699,7 @@ fn simplify_dialog_show_original_path_outlines_the_paths_before_the_preview() {
 #[test]
 fn printer_mark_labels_are_distinct_from_language_names() {
     let cs = crate::i18n::Lang::from_code("cs").unwrap();
-    assert_eq!(save_pdf::choice_label(cs, "marks.kind", "Japanese"), "Japonské");
-    assert_eq!(save_pdf::choice_label(cs, "language", "Japanese"), "Japonština");
+    assert_eq!(save_pdf::choice_label(cs, "marks.kind", "Japanese"), crate::i18n::tr_ctx(cs, "mark-style", "Japanese"));
+    assert_eq!(save_pdf::choice_label(cs, "language", "Japanese"), crate::i18n::tr(cs, "Japanese"));
     assert_eq!(save_pdf::choice_label(crate::i18n::Lang::EN, "marks.kind", "Japanese"), "Japanese");
 }

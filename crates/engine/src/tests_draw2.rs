@@ -116,6 +116,54 @@ fn pencil_alt_closes_path() {
     assert!(ps[0].1.is_closed());
 }
 
+/// #3799: with Shift held, a wavy Pencil drag draws one straight segment at 45° steps from the
+/// Constrain Angle (here 30°: a drag at about 60° comes out at 75°).
+#[test]
+fn pencil_with_shift_draws_a_straight_line() {
+    let mut s = session();
+    s.execute("prefs.set", &json!({"key": "constrainAngle", "value": 30})).unwrap();
+    let v = view();
+    let shift = Mods { shift: true, ..Default::default() };
+    s.select_tool("pencil", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 400.0).with_mods(shift), v).unwrap();
+    for (x, y) in [(120.0, 380.0), (125.0, 330.0), (160.0, 320.0), (150.0, 313.4)] {
+        s.pointer(&PointerEvent::new(PointerKind::Drag, x, y).with_mods(shift), v).unwrap();
+    }
+    s.pointer(&PointerEvent::new(PointerKind::Up, 150.0, 313.4).with_mods(shift), v).unwrap();
+    let ps = paths(&s);
+    assert_eq!(ps.len(), 1);
+    let sp = &ps[0].1.subpaths[0];
+    assert_eq!(sp.anchors.len(), 2, "{sp:?}");
+    assert!(sp.anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p), "no handles: {sp:?}");
+    let (a, b) = (sp.anchors[0].p, sp.anchors[1].p);
+    assert!(a.distance(Point::new(100.0, 400.0)) < 1e-6, "{a:?}");
+    let angle = (-(b.y - a.y)).atan2(b.x - a.x).to_degrees();
+    assert!((angle - 75.0).abs() < 1e-6, "{angle}");
+}
+
+/// #3799: with Alt held from the press to the release, a wavy Pencil drag draws one open straight
+/// segment from the press point to the release point, at the angle the pointer took.
+#[test]
+fn pencil_with_alt_draws_an_open_straight_line() {
+    let mut s = session();
+    let v = view();
+    let alt = Mods { alt: true, ..Default::default() };
+    s.select_tool("pencil", v).unwrap();
+    s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 400.0).with_mods(alt), v).unwrap();
+    for (x, y) in [(120.0, 380.0), (125.0, 330.0), (160.0, 320.0), (170.0, 333.0)] {
+        s.pointer(&PointerEvent::new(PointerKind::Drag, x, y).with_mods(alt), v).unwrap();
+    }
+    s.pointer(&PointerEvent::new(PointerKind::Up, 170.0, 333.0).with_mods(alt), v).unwrap();
+    let ps = paths(&s);
+    assert_eq!(ps.len(), 1);
+    assert!(!ps[0].1.is_closed());
+    let sp = &ps[0].1.subpaths[0];
+    assert_eq!(sp.anchors.len(), 2, "{sp:?}");
+    assert!(sp.anchors.iter().all(|a| a.h_in == a.p && a.h_out == a.p), "no handles: {sp:?}");
+    assert!(sp.anchors[0].p.distance(Point::new(100.0, 400.0)) < 1e-6, "{sp:?}");
+    assert!(sp.anchors[1].p.distance(Point::new(170.0, 333.0)) < 1e-6, "{sp:?}");
+}
+
 #[test]
 fn pencil_continues_selected_open_path() {
     let mut s = session();
@@ -2138,6 +2186,20 @@ fn join_takes_the_paths_and_the_ends_to_join() {
     ] {
         assert!(s.execute("path.join", &bad).is_err(), "{bad}");
     }
+}
+
+/// Without `ends`, the end points picked with the direct selection are the ones joined.
+#[test]
+fn join_uses_the_selected_end_points() {
+    let mut s = session();
+    let a = line(&mut s, 0.0, 0.0, 100.0, 0.0);
+    let b = line(&mut s, 110.0, 0.0, 200.0, 0.0);
+    s.execute("select.all", &json!({})).unwrap();
+    s.execute("select.anchors", &json!({"id": a.0, "anchors": [[0, 0]], "mode": "add"})).unwrap();
+    s.execute("select.anchors", &json!({"id": b.0, "anchors": [[0, 1]], "mode": "add"})).unwrap();
+    s.execute("path.join", &json!({})).unwrap();
+    let pts: Vec<(f64, f64)> = path(&s, a).subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect();
+    assert_eq!(pts, [(100.0, 0.0), (0.0, 0.0), (200.0, 0.0), (110.0, 0.0)]);
 }
 
 /// `path.join {to}` makes the joined anchor a corner or smooth point.

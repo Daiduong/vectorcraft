@@ -5,7 +5,7 @@ use vectorcraft_doc::Selection;
 use vectorcraft_geom::Point;
 use vectorcraft_tools::distort::perspective::widget::WidgetPlace;
 use vectorcraft_tools::draw2::FEEDBACK;
-use vectorcraft_tools::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, settings};
+use vectorcraft_tools::{Action, Cursor, ImeSurrounding, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, settings};
 
 use crate::{EngineError, Prefs, Result, Session};
 
@@ -169,13 +169,15 @@ impl Session {
     }
 
     /// The lent selection tool's gesture is over: the tool it was lent to is back as it was (the
-    /// Pen goes on drawing its path).
+    /// Pen goes on drawing its path), less the work the gesture ended as a command would: a
+    /// Cmd+click that takes the type being edited out of the selection ends its edit (#3779).
     pub(crate) fn give_back_tool(&mut self, view: ViewInfo) -> Result<()> {
         let Some(lender) = self.lender.take() else { return Ok(()) };
         let acts = self.with_tool_cx(view, |t, cx| t.deactivate(cx));
         let r = self.apply_actions(acts);
         self.keep_tool_settings();
         self.tool = lender;
+        self.after_command();
         r.map(drop)
     }
 
@@ -280,6 +282,7 @@ impl Session {
             measurement_labels: self.prefs.measurement_labels,
             transform_tools_guides: self.prefs.transform_tools_guides,
             spacing_guides: self.prefs.spacing_guides,
+            distance_guides: self.prefs.distance_guides,
             snapping_tolerance: self.prefs.snapping_tolerance,
             construction_angles: if self.prefs.construction_guides {
                 vectorcraft_tools::guides::construction_angles(&self.prefs.construction_angles)
@@ -311,6 +314,11 @@ impl Session {
     /// Feed a pointer event to the active tool. Returns requests for the UI.
     pub fn pointer(&mut self, ev: &PointerEvent, view: ViewInfo) -> Result<Vec<UiRequest>> {
         self.last_view = view;
+        match ev.kind {
+            PointerKind::Down | PointerKind::Drag => self.pointer_held = true,
+            PointerKind::Up | PointerKind::Move => self.pointer_held = false,
+            PointerKind::DoubleClick => {}
+        }
         // The Plane Switching Widget takes its clicks whatever the tool.
         if let Some(r) = self.plane_widget_pointer(ev, view) {
             return r;
@@ -391,6 +399,18 @@ impl Session {
         self.tool.wants_ticks()
     }
 
+    /// Is the active tool waiting for work it runs on another thread ([`Tool::waiting`])?
+    pub fn tool_waiting(&self) -> bool {
+        self.tool.waiting()
+    }
+
+    /// Lets the active tool check on the work [`Session::tool_waiting`] reports, and with `wait`
+    /// wait for it to finish ([`Tool::poll`]).
+    pub fn tool_poll(&mut self, view: ViewInfo, wait: bool) -> Result<()> {
+        self.with_tool_cx(view, |t, cx| t.poll(cx, wait));
+        self.take_tool_panic()
+    }
+
     pub fn tool_key(&mut self, key: ToolKey, mods: Mods, view: ViewInfo) -> Result<Vec<UiRequest>> {
         // 1–4 pick the active perspective plane while the grid is shown.
         if let Some(plane) = self.plane_key(key) {
@@ -409,6 +429,20 @@ impl Session {
         self.apply_actions(acts)
     }
 
+    /// Would [`Session::tool_text`] insert `text` unchanged (no control-character filtering,
+    /// newline normalization or document formatting such as Typographer's Quotes)? An IME commit
+    /// the application rewrites is an application edit, not an accepted IME insertion.
+    pub fn tool_text_is_verbatim(&mut self, text: &str, view: ViewInfo) -> bool {
+        self.with_tool_cx(view, |t, cx| t.text_input_is_verbatim(cx, text))
+    }
+
+    /// Does the active tool's open typing session still match the document? An IME commit after
+    /// an external edit starts a fresh session (an application-side reset), so its receipt must
+    /// not be accepted as an unchanged IME insertion.
+    pub fn tool_ime_session_matches(&mut self, view: ViewInfo) -> bool {
+        self.with_tool_cx(view, |t, cx| t.ime_session_matches_document(cx))
+    }
+
     pub fn tool_wants_text(&self) -> bool {
         self.tool.wants_text()
     }
@@ -421,6 +455,37 @@ impl Session {
         self.apply_actions(acts)
     }
 
+    /// An IME replaces text around its composition before committing: delete `before`/`after`
+    /// units around the selection or pre-edit. The selection/pre-edit itself is preserved (the
+    /// following commit replaces it), and the commit shares the typing session, so the replacement
+    /// is one undo step.
+    pub fn tool_ime_delete_surrounding(
+        &mut self,
+        before: usize,
+        after: usize,
+        unit: vectorcraft_tools::SurroundingUnit,
+        view: ViewInfo,
+    ) -> Result<Vec<UiRequest>> {
+        let acts = self.with_tool_cx(view, |t, cx| t.ime_delete_surrounding(cx, before, after, unit));
+        self.take_tool_panic()?;
+        self.apply_actions(acts)
+    }
+
+    /// The active tool's stable IME owner `(document uid, target id, replacement epoch)`: the
+    /// document uid changes on document replacement, the epoch when the same target is started
+    /// afresh. Ordinary edits and caret moves leave both unchanged.
+    pub fn tool_ime_target(&mut self, view: ViewInfo) -> Option<(u64, u64, u64)> {
+        self.with_tool_cx(view, |t, cx| t.ime_target(cx))
+    }
+
+    /// The committed logical text around the IME cursor (UTF-8 byte offsets), with any pre-edit
+    /// removed and at most `max_bytes` bytes copied: the app's outgoing surrounding-text producer
+    /// (egui E21b) reads it. An explicit [`ImeSurrounding::Unavailable`] carries the narrow reason
+    /// (no editor, invalid offsets, or a selection wider than the limit).
+    pub fn tool_ime_surrounding(&mut self, max_bytes: usize, view: ViewInfo) -> ImeSurrounding {
+        self.with_tool_cx(view, |t, cx| t.ime_surrounding(cx, max_bytes))
+    }
+
     /// Is the active tool showing uncommitted IME text?
     pub fn tool_composing(&self) -> bool {
         self.tool.composing()
@@ -431,8 +496,26 @@ impl Session {
         self.with_tool_cx(view, |t, cx| t.ime_caret(cx))
     }
 
+    /// The pointer stopped hovering for the active tool ([`vectorcraft_tools::Tool::hover_ended`]).
+    pub fn tool_hover_ended(&mut self, view: ViewInfo) {
+        self.with_tool_cx(view, |t, cx| t.hover_ended(cx));
+    }
+
+    /// Whether the active tool's hover depends on what lies under a still pointer
+    /// ([`vectorcraft_tools::Tool::wants_rehover`]).
+    pub fn tool_wants_rehover(&self) -> bool {
+        self.tool.wants_rehover()
+    }
+
     pub fn tool_busy(&self) -> bool {
         self.tool.busy()
+    }
+
+    /// Is the pointer button held: was the last pointer event a press or a drag, not a release or a
+    /// move? A tool that is busy while the button is not held is waiting between its clicks (the
+    /// Dimension tool after its first point).
+    pub fn pointer_held(&self) -> bool {
+        self.pointer_held
     }
 
     /// Is the active tool moving, scaling or rotating the selection with a drag?
@@ -447,11 +530,11 @@ impl Session {
 
     pub fn overlays(&mut self, view: ViewInfo) -> Vec<Overlay> {
         let mut v = self.with_tool_cx(view, |t, cx| t.overlays(cx));
-        // The Type tools draw the overflow markers of selected type themselves.
+        // The Type tools draw the ports of selected type themselves.
         if !matches!(self.tool.id(), "type" | "areaType" | "typeOnPath" | "verticalType" | "verticalAreaType" | "verticalTypeOnPath") {
-            let mut marks = std::mem::take(&mut self.overflow_marks);
-            v.extend(self.with_tool_cx(view, |_, cx| vectorcraft_tools::text::overflow_markers(&mut marks, cx)));
-            self.overflow_marks = marks;
+            let mut marks = std::mem::take(&mut self.port_marks);
+            v.extend(self.with_tool_cx(view, |_, cx| vectorcraft_tools::text::thread_ports(&mut marks, cx)));
+            self.port_marks = marks;
         }
         if let Some(g) = self.ruler_guide.take() {
             v.extend(self.with_tool_cx(view, |_, cx| g.overlays(cx)));
@@ -462,6 +545,10 @@ impl Session {
             let w = self.prefs.perspective_widget;
             let place = w.show.then_some(WidgetPlace { screen: view.screen.as_ref(), corner: w.position });
             v.splice(0..0, vectorcraft_tools::distort::perspective::grid_overlays_in(&d.doc, 1.0 / view.zoom.max(1e-9), place));
+        }
+        // Global Edit: the objects edited with the selected one are highlighted.
+        for (path, color) in crate::cmd::globaledit::highlights(self) {
+            v.push(Overlay::Path { path, color, width: 1.0, dashed: false });
         }
         if let Some((cmd, p)) = deferred_preview {
             v.extend(self.deferred_preview_overlays_from_command(&cmd, &p));
@@ -533,6 +620,13 @@ impl Session {
         let mut values = p.get("values").and_then(Value::as_object).cloned().unwrap_or_default();
         if let Some(k) = p.get("key").and_then(Value::as_str) {
             values.insert(k.to_string(), p.get("value").cloned().unwrap_or(Value::Null));
+        }
+        // The Place queue is read later, by a click outside any automation scope: its files must
+        // be readable now, under the roots of whoever sets it.
+        if let Some(entries) = values.get("queue").and_then(|q| q.get("entries")).and_then(Value::as_array) {
+            for path in entries.iter().filter_map(|e| e.pointer("/params/path").and_then(Value::as_str)) {
+                crate::file_access::check_read(path)?;
+            }
         }
         if tool.unwrap_or(self.tool_id()) == "dimension" {
             if let Some(style) = values.get("style") {

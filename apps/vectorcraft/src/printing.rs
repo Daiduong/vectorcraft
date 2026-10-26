@@ -23,6 +23,11 @@ impl PrintService for SystemPrint {
     fn shared_print(&self) -> Option<vectorcraft_ui_egui::print::SharedPrintFn> {
         Some(std::sync::Arc::new(|job| SystemPrint.print(job)))
     }
+    fn turns_landscape(&self) -> bool {
+        // macOS's `lp` doesn't turn a landscape page to the paper: it cuts it off on upright
+        // paper. craft-print turns each sheet to its own orientation on Windows.
+        !cfg!(target_os = "macos")
+    }
     fn has_setup(&self) -> bool {
         true
     }
@@ -159,5 +164,16 @@ mod queue_tests {
     fn a_chosen_paper_is_demanded_exactly_and_grayscale_asks_for_monochrome() {
         let q = queue_job(&job(true, true));
         assert_eq!((q.scaling, q.grayscale), (craft_print::Scaling::Exact, true));
+    }
+}
+
+#[cfg(test)]
+mod turn_tests {
+    use super::SystemPrint;
+    use vectorcraft_ui_egui::print::PrintService;
+
+    #[test]
+    fn only_macos_queues_need_landscape_pages_turned() {
+        assert_eq!(SystemPrint.turns_landscape(), !cfg!(target_os = "macos"));
     }
 }

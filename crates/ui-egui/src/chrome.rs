@@ -265,7 +265,7 @@ fn isolation_button(app: &mut VectorcraftApp, ui: &mut Ui) {
         return;
     };
     let (rect, _) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::hover());
-    let resp = ui.interact(rect, egui::Id::new(ISOLATION_BUTTON), Sense::click());
+    let resp = ui.interact(rect, egui::Id::unique(ISOLATION_BUTTON), Sense::click());
     if widgets::paint_icon_button(ui, resp, icon, tip, false).clicked() {
         crate::menus::invoke(app, id, json!({}));
     }
@@ -489,7 +489,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         }
         let is_active = Some(i) == active;
         let r = egui::Rect::from_min_size(egui::pos2(x, strip.top()), vec2(*w, strip.height() - 1.0));
-        let resp = ui.interact(r, ui.id().with(("tab", i)), Sense::click());
+        let resp = ui.interact(r, ui.scope_id().with(("tab", i)), Sense::click());
         if is_active {
             ui.painter().rect_filled(r, 0.0, t.panel);
         } else if resp.hovered() {
@@ -500,7 +500,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
         // (#673).
         let (x_center, title_left) = if CLOSE_BEFORE_TITLE { (r.left() + 16.0, r.left() + 32.0) } else { (r.right() - 16.0, r.left() + 14.0) };
         let xr = egui::Rect::from_center_size(egui::pos2(x_center, r.center().y), vec2(12.0, 12.0));
-        let xresp = ui.interact(xr.expand(3.0), ui.id().with(("tabx", i)), Sense::click());
+        let xresp = ui.interact(xr.expand(3.0), ui.scope_id().with(("tabx", i)), Sense::click());
         icons::paint(ui, "x", xr, if xresp.hovered() { t.text_strong } else { t.text });
         ui.painter().galley(egui::pos2(title_left, r.center().y - galley.size().y / 2.0), galley.clone(), t.text);
         hovering_art |= crate::document_drag::hover_tab(app, &resp, i, xr.expand(3.0));
@@ -515,7 +515,7 @@ pub fn doc_tabs(app: &mut VectorcraftApp, ui: &mut Ui) {
     // The » button: every open document, the active one checked.
     if overflow {
         let more = egui::Rect::from_min_max(egui::pos2(strip.right() - MORE, strip.top()), egui::pos2(strip.right(), strip.bottom() - 1.0));
-        let resp = ui.interact(more, ui.id().with("tabs-more"), Sense::click());
+        let resp = ui.interact(more, ui.scope_id().with("tabs-more"), Sense::click());
         ui.painter().rect_filled(more, 0.0, if resp.hovered() { t.hover.gamma_multiply(0.4) } else { t.tab_strip });
         icons::paint(ui, "chevrons-right", egui::Rect::from_center_size(more.center(), vec2(14.0, 14.0)), t.text);
         let resp = resp.on_hover_text(tl!("Show all open documents"));
@@ -563,10 +563,10 @@ pub fn isolation_bar(app: &mut VectorcraftApp, ui: &mut Ui, area: egui::Rect) {
             crumbs.push(pn.clone());
         }
         let bar = egui::Rect::from_min_size(area.min, vec2(area.width(), 24.0));
-        ui.interact(bar, ui.id().with("iso-bar"), Sense::click_and_drag());
+        ui.interact(bar, ui.scope_id().with("iso-bar"), Sense::click_and_drag());
         ui.painter().rect_filled(bar, 0.0, t.panel);
         let back = egui::Rect::from_min_size(bar.min + vec2(6.0, 3.0), vec2(18.0, 18.0));
-        let bresp = ui.interact(back, ui.id().with("iso-back"), Sense::click());
+        let bresp = ui.interact(back, ui.scope_id().with("iso-back"), Sense::click());
         icons::paint(ui, "chevron-left", back, if bresp.hovered() { t.text } else { t.icon });
         ui.painter().text(
             bar.left_center() + vec2(30.0, 0.0),
@@ -582,7 +582,7 @@ pub fn isolation_bar(app: &mut VectorcraftApp, ui: &mut Ui, area: egui::Rect) {
                 let label = tl!(label);
                 let w = 12.0 + 7.0 * label.len() as f32;
                 let r = egui::Rect::from_min_max(egui::pos2(x - w, bar.top() + 3.0), egui::pos2(x, bar.bottom() - 3.0));
-                let resp = ui.interact(r, ui.id().with(("pat-bar", cmd)), Sense::click());
+                let resp = ui.interact(r, ui.scope_id().with(("pat-bar", cmd)), Sense::click());
                 ui.painter().rect_filled(r, 3.0, if resp.hovered() { t.hover } else { t.panel });
                 ui.painter().rect_stroke(r, 3.0, Stroke::new(1.0, t.button_border), egui::StrokeKind::Inside);
                 ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, label, egui::FontId::proportional(12.0), t.text);
@@ -621,70 +621,70 @@ fn artboard_list(app: &VectorcraftApp, ui: &mut Ui, cur: usize) -> Option<usize>
     let boards = app.session.active().map(|d| d.doc.artboards.as_slice()).unwrap_or_default();
     let shown = boards.get(cur).map_or_else(|| "–".to_string(), |a| format!("{}  {}", cur + 1, a.name));
     // Under `drawn`, egui's temp data stores the pass the list was last drawn in.
-    let drawn = ui.id().with("artboard-list");
+    let drawn = ui.scope_id().with("artboard-list");
     let height = ROW_H * ROWS;
     ui.add_enabled_ui(!boards.is_empty(), |ui| {
         ui.set_max_width(FIELD_W);
-        egui::ComboBox::from_id_salt("artboard-list")
-            .selected_text(egui::RichText::new(shown).size(11.5))
-            .width(FIELD_W)
-            .wrap_mode(egui::TextWrapMode::Truncate)
-            .height(height)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .show_ui(ui, |ui| {
-                let pass = ui.ctx().cumulative_pass_nr();
-                let last = ui.data(|d| d.get_temp::<u64>(drawn)).unwrap_or_default();
-                ui.data_mut(|d| d.insert_temp(drawn, pass));
-                let mut area = egui::ScrollArea::vertical().max_height(height);
-                // As the list opens, it scrolls the active row as close to the middle as the list allows.
-                if last + 1 < pass || last == 0 {
-                    area = area.vertical_scroll_offset((cur as f32 * ROW_H - (height - ROW_H) * 0.5).max(0.0));
-                }
-                // Every number ends where the widest one ends.
-                let numbers = ui.painter().layout_no_wrap(boards.len().to_string(), egui::FontId::proportional(12.0), t.text_dim).size().x;
-                let width = ui.available_width().max(LIST_W);
-                let mut chosen = None;
-                ui.spacing_mut().item_spacing.y = 0.0;
-                area.show_rows(ui, ROW_H, boards.len(), |ui, range| {
-                    for i in range {
-                        let Some(board) = boards.get(i) else { continue };
-                        let (r, resp) = ui.allocate_exact_size(vec2(width, ROW_H), Sense::click());
-                        if i == cur {
-                            ui.painter().rect_filled(r, 0.0, t.row_selected);
-                        } else if resp.hovered() {
-                            ui.painter().rect_filled(r, 0.0, t.hover);
-                        }
-                        let number_end = r.left() + 8.0 + numbers;
-                        ui.painter().text(
-                            egui::pos2(number_end, r.center().y),
-                            egui::Align2::RIGHT_CENTER,
-                            (i + 1).to_string(),
-                            egui::FontId::proportional(12.0),
-                            t.text_dim,
-                        );
-                        let name_start = number_end + 10.0;
-                        let name = egui::WidgetText::from(egui::RichText::new(&board.name).size(12.5)).into_galley(
-                            ui,
-                            Some(egui::TextWrapMode::Truncate),
-                            r.right() - 8.0 - name_start,
-                            egui::TextStyle::Body,
-                        );
-                        ui.painter().galley(egui::pos2(name_start, r.center().y - name.size().y / 2.0), name, t.text);
-                        resp.widget_info(|| {
-                            egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, i == cur, format!("{}  {}", i + 1, board.name))
-                        });
-                        if resp.clicked() {
-                            chosen = Some(i);
-                        }
+        ui.name_inputs(tl!("Artboard"), |ui| {
+            egui::ComboBox::from_id_salt("artboard-list")
+                .selected_text(egui::RichText::new(shown).size(11.5))
+                .width(FIELD_W)
+                .wrap_mode(egui::TextWrapMode::Truncate)
+                .height(height)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show_ui(ui, |ui| {
+                    let pass = ui.ctx().cumulative_pass_nr();
+                    let last = ui.data(|d| d.get_temp::<u64>(drawn)).unwrap_or_default();
+                    ui.data_mut(|d| d.insert_temp(drawn, pass));
+                    let mut area = egui::ScrollArea::vertical().max_height(height);
+                    // As the list opens, it scrolls the active row as close to the middle as the list allows.
+                    if last + 1 < pass || last == 0 {
+                        area = area.vertical_scroll_offset((cur as f32 * ROW_H - (height - ROW_H) * 0.5).max(0.0));
                     }
-                });
-                if chosen.is_some() {
-                    ui.close();
-                }
-                chosen
-            })
-            .inner
-            .flatten()
+                    // Every number ends where the widest one ends.
+                    let numbers = ui.painter().layout_no_wrap(boards.len().to_string(), egui::FontId::proportional(12.0), t.text_dim).size().x;
+                    let width = ui.available_width().max(LIST_W);
+                    let mut chosen = None;
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    area.show_rows(ui, ROW_H, boards.len(), |ui, range| {
+                        for i in range {
+                            let Some(board) = boards.get(i) else { continue };
+                            let (r, resp) = ui.allocate_exact_size(vec2(width, ROW_H), Sense::click());
+                            if i == cur {
+                                ui.painter().rect_filled(r, 0.0, t.row_selected);
+                            } else if resp.hovered() {
+                                ui.painter().rect_filled(r, 0.0, t.hover);
+                            }
+                            let number_end = r.left() + 8.0 + numbers;
+                            ui.painter().text(
+                                egui::pos2(number_end, r.center().y),
+                                egui::Align2::RIGHT_CENTER,
+                                (i + 1).to_string(),
+                                egui::FontId::proportional(12.0),
+                                t.text_dim,
+                            );
+                            let name_start = number_end + 10.0;
+                            let name = egui::WidgetText::from(egui::RichText::new(&board.name).size(12.5)).into_galley(
+                                ui,
+                                Some(egui::TextWrapMode::Truncate),
+                                r.right() - 8.0 - name_start,
+                                egui::TextStyle::Body,
+                            );
+                            ui.painter().galley(egui::pos2(name_start, r.center().y - name.size().y / 2.0), name, t.text);
+                            resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, i == cur, format!("{}  {}", i + 1, board.name)));
+                            if resp.clicked() {
+                                chosen = Some(i);
+                            }
+                        }
+                    });
+                    if chosen.is_some() {
+                        ui.close();
+                    }
+                    chosen
+                })
+                .inner
+                .flatten()
+        })
     })
     .inner
 }
@@ -700,38 +700,42 @@ pub fn status_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                 let zoom = app.view().map(|v| v.zoom).unwrap_or(1.0);
                 let print = app.session.prefs.display_print_size;
                 let shown = crate::state::zoom_display_percent(zoom, print);
-                egui::ComboBox::from_id_salt("zoom-combo")
-                    .selected_text(egui::RichText::new(zoom_label(zoom, print)).size(11.5))
-                    .width(76.0)
-                    .show_ui(ui, |ui| {
-                        for z in ZOOM_STOPS.iter().rev() {
-                            if ui
-                                .selectable_label((z - shown).abs() < 0.01, zoom_label(crate::state::zoom_from_display_percent(*z, print), print))
-                                .clicked()
-                            {
-                                app.run("view.setZoom", json!({"zoom": z})).ok();
+                ui.name_inputs(tl!("Zoom"), |ui| {
+                    egui::ComboBox::from_id_salt("zoom-combo")
+                        .selected_text(egui::RichText::new(zoom_label(zoom, print)).size(11.5))
+                        .width(76.0)
+                        .show_ui(ui, |ui| {
+                            for z in ZOOM_STOPS.iter().rev() {
+                                if ui
+                                    .selectable_label((z - shown).abs() < 0.01, zoom_label(crate::state::zoom_from_display_percent(*z, print), print))
+                                    .clicked()
+                                {
+                                    app.run("view.setZoom", json!({"zoom": z})).ok();
+                                }
                             }
-                        }
-                        ui.separator();
-                        if ui.selectable_label(false, tl!("Fit on Screen")).clicked() {
-                            app.run("view.fitArtboard", json!({})).ok();
-                        }
-                        if ui.selectable_label(false, tl!("Fit All")).clicked() {
-                            app.run("view.fitAll", json!({})).ok();
-                        }
-                    });
+                            ui.separator();
+                            if ui.selectable_label(false, tl!("Fit on Screen")).clicked() {
+                                app.run("view.fitArtboard", json!({})).ok();
+                            }
+                            if ui.selectable_label(false, tl!("Fit All")).clicked() {
+                                app.run("view.fitAll", json!({})).ok();
+                            }
+                        });
+                });
                 let rot = app.view().map(|v| v.rotation).unwrap_or(0.0);
-                egui::ComboBox::from_id_salt("rot-combo").selected_text(egui::RichText::new(format!("{rot:.0}°")).size(11.5)).width(52.0).show_ui(
-                    ui,
-                    |ui| {
-                        for (label, a) in ROTATE_VIEW_ANGLES {
-                            if ui.selectable_label((rot - a).abs() < 1e-9, label).clicked() {
-                                // It fails only without a document, when there is no view to turn.
-                                app.run("view.rotate", json!({"angle": a})).ok();
+                ui.name_inputs(tl!("Rotation"), |ui| {
+                    egui::ComboBox::from_id_salt("rot-combo")
+                        .selected_text(egui::RichText::new(format!("{rot:.0}°")).size(11.5))
+                        .width(52.0)
+                        .show_ui(ui, |ui| {
+                            for (label, a) in ROTATE_VIEW_ANGLES {
+                                if ui.selectable_label((rot - a).abs() < 1e-9, label).clicked() {
+                                    // It fails only without a document, when there is no view to turn.
+                                    app.run("view.rotate", json!({"angle": a})).ok();
+                                }
                             }
-                        }
-                    },
-                );
+                        });
+                });
                 ui.separator();
                 // The artboard navigator has First and Previous, a field with the current artboard's
                 // number and name and a list of every artboard, then Next and Last.
@@ -779,7 +783,7 @@ struct StatusReadoutWidths {
 /// Reuse sample-string measurements until language, document units or display scale changes.
 /// Keep a single entry per UI so repeated DPI/zoom changes cannot grow the cache indefinitely.
 fn status_readout_widths(ui: &Ui, lang: crate::i18n::Lang, unit: vectorcraft_doc::Unit, t: &Tokens) -> Arc<StatusReadoutWidths> {
-    let id = ui.id().with("status-readout-widths");
+    let id = ui.scope_id().with("status-readout-widths");
     let key = (lang, unit, ui.ctx().pixels_per_point());
     if let Some(cached) = ui.data(|data| data.get_temp::<Arc<StatusReadoutWidths>>(id))
         && cached.key == key
@@ -819,7 +823,7 @@ fn status_readouts(app: &VectorcraftApp, ui: &mut Ui, t: &Tokens) {
     let [render_width, ui_width, fps_width, axis_width] = widths.values;
     let coord_width = 2.0 * axis_width;
     let perf_width = render_width + ui_width + fps_width + 12.0;
-    let point_id = ui.id().with(("status-hover-point", app.session.active().map(|st| st.uid)));
+    let point_id = ui.scope_id().with(("status-hover-point", app.session.active().map(|st| st.uid)));
     if let Some(p) = app.hover_doc {
         ui.data_mut(|data| data.insert_temp(point_id, p));
     }
@@ -854,7 +858,8 @@ fn status_readouts(app: &VectorcraftApp, ui: &mut Ui, t: &Tokens) {
         let inspecting = ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| coord_rect.contains(p)) && ui.rect_contains_pointer(coord_rect);
         let point = app.hover_doc.or_else(|| inspecting.then(|| ui.data(|data| data.get_temp::<vectorcraft_geom::Point>(point_id))).flatten());
         if let Some(p) = point {
-            for (id, x, value) in [("X", left, p.x), ("Y", left + axis_width, p.y)] {
+            let origin = app.ruler_origin();
+            for (id, x, value) in [("X", left, p.x - origin.x), ("Y", left + axis_width, p.y - origin.y)] {
                 let rect = egui::Rect::from_min_size(egui::pos2(x, area.top()), vec2(axis_width, area.height()));
                 status_field(ui, id, rect, format!("{id}: {}", unit.readout(value)), mono.clone(), t.text_dim);
             }
@@ -902,8 +907,8 @@ fn status_field(ui: &mut Ui, id: &str, rect: egui::Rect, text: String, font: egu
     let at = egui::pos2(rect.left(), rect.center().y - galley.size().y / 2.0);
     let elided = galley.elided;
     ui.painter().with_clip_rect(ui.clip_rect().intersect(rect)).galley(at, galley, color);
-    let response = ui.interact(rect, ui.id().with(("status-field", id)), Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, &text));
+    let response = ui.interact(rect, ui.scope_id().with(("status-field", id)), Sense::hover());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &text));
     if elided {
         response.on_hover_text(text);
     }
@@ -1266,7 +1271,7 @@ mod tests {
         let mut output = ctx.run_ui(input, |ui| {
             let t = Tokens::get(ui.ctx());
             status_readouts(app, ui, &t);
-            cache = ui.data(|data| data.get_temp::<Arc<StatusReadoutWidths>>(ui.id().with("status-readout-widths")));
+            cache = ui.data(|data| data.get_temp::<Arc<StatusReadoutWidths>>(ui.scope_id().with("status-readout-widths")));
         });
         output.textures_delta.clear();
         cache.expect("production status readouts populated their cache")
@@ -1661,6 +1666,110 @@ mod tests {
             .collect()
     }
 
+    /// Read the painted coordinates while checking that drawing never changes the source
+    /// position, document, selection or either branch of its edit history.
+    fn assert_status_coordinates(app: &mut crate::VectorcraftApp, expected: Option<&str>) {
+        let hover = app.hover_doc;
+        let before =
+            app.session.active().map(|st| (st.doc.clone(), st.selection.clone(), st.history.undo.len(), st.history.redo.len(), st.is_dirty()));
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        let texts = status_texts(app, &ctx, vec![]);
+        let coordinates: Vec<&str> =
+            texts.iter().filter_map(|(text, _)| (text.starts_with("X: ") || text.starts_with("Y: ")).then_some(text.as_str())).collect();
+        let expected: Vec<&str> = expected.into_iter().flat_map(|text| text.split("  ")).collect();
+        assert_eq!(coordinates, expected, "{texts:?}");
+        assert_eq!(app.hover_doc, hover, "tools still receive the absolute document position");
+        let after =
+            app.session.active().map(|st| (st.doc.clone(), st.selection.clone(), st.history.undo.len(), st.history.redo.len(), st.is_dirty()));
+        assert_eq!(after, before, "painting is read-only");
+    }
+
+    #[test]
+    fn status_coordinates_follow_global_ruler_origins_and_general_units() {
+        use vectorcraft_geom::Point;
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
+        app.run("view.globalRulers", json!({"global": true})).unwrap();
+        app.session.active_mut().unwrap().mark_saved();
+        app.hover_doc = Some(Point::new(72.0, 144.0));
+        assert_status_coordinates(&mut app, Some("X: 72.00 pt  Y: 144.00 pt"));
+        app.run("document.setRulerOrigin", json!({"x": 36, "y": 72})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 36.00 pt  Y: 72.00 pt"));
+        app.run("document.setRulerOrigin", json!({"x": -72, "y": 216})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 144.00 pt  Y: -72.00 pt"));
+        app.run("document.setUnits", json!({"units": "Inches"})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 2.00 in  Y: -1.00 in"));
+        app.run("document.setUnits", json!({"units": "Millimeters"})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 50.80 mm  Y: -25.40 mm"));
+        app.run("document.resetRulerOrigin", json!({})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 25.40 mm  Y: 50.80 mm"));
+        // Keep a nonempty Redo branch as well as Undo while painting.
+        app.run("edit.undo", json!({})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 50.80 mm  Y: -25.40 mm"));
+    }
+
+    #[test]
+    fn status_coordinates_follow_the_active_artboard_and_ruler_mode() {
+        use vectorcraft_geom::Point;
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
+        app.run("artboard.new", json!({"x": 700, "y": -250, "width": 200, "height": 150})).unwrap();
+        app.hover_doc = Some(Point::new(760.0, -210.0));
+        app.run("document.setRulerOrigin", json!({"artboard": 0, "x": 25, "y": 30})).unwrap();
+        app.run("view.goToArtboard", json!({"index": 0})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 735.00 pt  Y: -240.00 pt"));
+        app.run("view.goToArtboard", json!({"index": 1})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 60.00 pt  Y: 40.00 pt"));
+        app.run("document.setRulerOrigin", json!({"artboard": 1, "x": 800, "y": -190})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: -40.00 pt  Y: -20.00 pt"));
+        app.run("view.globalRulers", json!({"global": true})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 760.00 pt  Y: -210.00 pt"));
+        app.run("document.setRulerOrigin", json!({"x": -20, "y": -10})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 780.00 pt  Y: -200.00 pt"));
+        app.run("view.globalRulers", json!({"global": false})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: -40.00 pt  Y: -20.00 pt"));
+        app.run("document.resetRulerOrigin", json!({"artboard": 1})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 60.00 pt  Y: 40.00 pt"));
+        app.run("view.goToArtboard", json!({"index": 0})).unwrap();
+        assert_status_coordinates(&mut app, Some("X: 735.00 pt  Y: -240.00 pt"));
+    }
+
+    #[test]
+    fn status_coordinates_handle_missing_pointer_or_document() {
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        assert_status_coordinates(&mut app, None);
+        app.hover_doc = Some(vectorcraft_geom::Point::new(42.0, -21.0));
+        assert_status_coordinates(&mut app, Some("X: 42.00 pt  Y: -21.00 pt"));
+        app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
+        app.run("document.setRulerOrigin", json!({"x": 10, "y": 20})).unwrap();
+        app.hover_doc = None;
+        assert_status_coordinates(&mut app, None);
+    }
+
+    #[test]
+    fn status_coordinates_keep_the_inspected_point_relative_after_an_origin_change() {
+        let (mut app, ctx) = status_readout_app();
+        app.run("view.globalRulers", json!({"global": true})).unwrap();
+        app.run("document.setRulerOrigin", json!({"x": 36, "y": 72})).unwrap();
+        app.hover_doc = Some(vectorcraft_geom::Point::new(72.0, 144.0));
+        let first = status_readout_frame(&mut app, &ctx, 1400.0);
+        let at = status_text(&first, "X:").bounds.center();
+        app.hover_doc = None;
+        let inspecting = status_readout_frame_events(&mut app, &ctx, 1400.0, vec![egui::Event::PointerMoved(at)]);
+        assert_eq!(status_text(&inspecting, "X:").text, "X: 36.00 pt");
+        assert_eq!(status_text(&inspecting, "Y:").text, "Y: 72.00 pt");
+        app.run("document.setRulerOrigin", json!({"x": -72, "y": 216})).unwrap();
+        let before = app.session.active().unwrap().doc.clone();
+        let inspecting = status_readout_frame(&mut app, &ctx, 1400.0);
+        assert_eq!(status_text(&inspecting, "X:").text, "X: 144.00 pt");
+        assert_eq!(status_text(&inspecting, "Y:").text, "Y: -72.00 pt");
+        assert_eq!(app.hover_doc, None, "inspection never changes the absolute canvas hover state");
+        assert_eq!(app.session.active().unwrap().doc, before, "painting is read-only");
+        let gone = status_readout_frame_events(&mut app, &ctx, 1400.0, vec![egui::Event::PointerGone]);
+        assert!(!gone.iter().any(|field| field.text.starts_with("X:") || field.text.starts_with("Y:")));
+    }
+
     /// A click at `at` in the status bar; returns the texts of the frame after it.
     fn status_click(app: &mut crate::VectorcraftApp, ctx: &egui::Context, at: egui::Pos2) -> Vec<(String, egui::Rect)> {
         let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
@@ -1728,6 +1837,7 @@ mod tests {
             delta: egui::vec2(0.0, dy),
             phase,
             modifiers: Default::default(),
+            source: egui::MouseWheelSource::Unknown,
         };
         status_texts(
             &mut app,
@@ -1925,7 +2035,7 @@ mod tests {
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1600.0, 300.0));
         let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| super::control_bar(app, ui));
         out.textures_delta.clear();
-        ctx.viewport(|vp| vp.prev_pass.widgets.get(egui::Id::new(super::ISOLATION_BUTTON)).map(|w| w.rect))
+        ctx.viewport(|vp| vp.prev_pass.widgets.get(egui::Id::unique(super::ISOLATION_BUTTON)).map(|w| w.rect))
     }
 
     /// Entering isolation mode leaves the canvas where it was: the breadcrumb bar is drawn over the
@@ -2486,7 +2596,7 @@ mod visual_regressions {
                     harness.render().unwrap().save(directory.join(format!("{stem}.png"))).unwrap();
                     let mut regions = serde_json::Map::new();
                     for id in ["app_bar", "status_bar"] {
-                        let rect = egui::containers::panel::PanelState::load(&harness.ctx, egui::Id::new(id)).unwrap().outer_rect;
+                        let rect = egui::containers::panel::PanelState::load(&harness.ctx, egui::Id::unique(id)).unwrap().outer_rect;
                         regions.insert(id.into(), json!([rect.left(), rect.top(), rect.width(), rect.height()]));
                     }
                     let dynamic: Vec<_> = harness
