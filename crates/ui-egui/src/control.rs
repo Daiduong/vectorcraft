@@ -445,12 +445,15 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context, req: &ControlReques
                     let names = crate::dialogs::field_names(d).join(", ");
                     return err(format!("the `{}` dialog has no field `{f}`; its fields: {names}", d.kind));
                 }
-                let names: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
+                // In order: a field that sets others (an export preset) goes before the fields after it.
+                // A field that fails leaves the dialog as it was before the request.
+                let before = app.ui.dialog.clone();
                 for (f, value) in fields {
-                    d.fields.insert(f, value);
-                }
-                for f in &names {
-                    if let Err(e) = crate::dialogs::field_set(app, f) {
+                    if let Some(d) = app.ui.dialog.as_mut() {
+                        d.fields.insert(f.clone(), value);
+                    }
+                    if let Err(e) = crate::dialogs::field_set(app, &f) {
+                        app.ui.dialog = before;
                         return err(e);
                     }
                 }

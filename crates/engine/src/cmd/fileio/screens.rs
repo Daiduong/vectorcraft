@@ -645,9 +645,19 @@ fn preset_settings(s: &Session, cmd: &str, given: &Map<String, Value>) -> Result
     Ok(settings)
 }
 
+/// The longest export preset name kept (characters), as for asset names (`assets::MAX_NAME`).
+const MAX_PRESET_NAME: usize = 255;
+
+/// `name` trimmed and at most [`MAX_PRESET_NAME`] characters long (`None` when empty), as
+/// `assets::clean_name` keeps an asset name.
+fn preset_name(name: &str) -> Option<String> {
+    let n: String = name.trim().chars().take(MAX_PRESET_NAME).collect();
+    (!n.is_empty()).then_some(n)
+}
+
 pub(super) fn presets_save(s: &mut Session, p: &Value) -> Result<Value> {
     const SAVE: &str = "document.exportPresets.save";
-    let name = str_param(p, "name").map(str::trim).filter(|n| !n.is_empty()).ok_or_else(|| bad(SAVE, "give the preset a name"))?.to_string();
+    let name = str_param(p, "name").and_then(preset_name).ok_or_else(|| bad(SAVE, "give the preset a name"))?;
     if builtin_presets().iter().any(|b| b.name == name) {
         return Err(bad(SAVE, format!("`{name}` is a built-in preset: save under another name")));
     }
@@ -700,7 +710,10 @@ const MAX_IMPORT: usize = 1000;
 
 pub(super) fn presets_export(s: &mut Session, p: &Value) -> Result<Value> {
     const EXPORT: &str = "document.exportPresets.export";
+    // A file holds no more presets than an import reads.
+    let too_many = || bad(EXPORT, format!("more than {MAX_IMPORT} presets"));
     let presets = match p.get("names") {
+        Some(Value::Array(names)) if names.len() > MAX_IMPORT => return Err(too_many()),
         Some(Value::Array(names)) => {
             let find = |n: &Value| {
                 let n = n.as_str().ok_or_else(|| bad(EXPORT, "`names` lists preset names"))?;
@@ -713,6 +726,9 @@ pub(super) fn presets_export(s: &mut Session, p: &Value) -> Result<Value> {
     };
     if presets.is_empty() {
         return Err(bad(EXPORT, "no saved export presets to export (name built-in ones in `names`)"));
+    }
+    if presets.len() > MAX_IMPORT {
+        return Err(too_many());
     }
     let count = presets.len();
     let text = serde_json::to_string_pretty(&PresetFile { format: PRESET_FILE_FORMAT.into(), presets }).map_err(|e| bad(EXPORT, e.to_string()))?;
@@ -748,7 +764,7 @@ pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
             EngineError::BadParams { msg, .. } => bad(IMPORT, format!("`{}`: {msg}", q.name)),
             e => e,
         })?;
-        let name = Some(q.name.trim()).filter(|n| !n.is_empty()).unwrap_or("Export Preset").to_string();
+        let name = preset_name(&q.name).unwrap_or_else(|| "Export Preset".to_string());
         presets.push((name, settings));
     }
     let replace = bool_or(p, "replace", false);
@@ -763,7 +779,14 @@ pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
             imported.push(base);
             continue;
         }
-        let name = super::import_name(&base, |n| taken.contains(n));
+        let mut name = super::import_name(&base, |n| taken.contains(n));
+        if name.chars().count() > MAX_PRESET_NAME {
+            // A number after a long name stays within the limit: the name is cut to leave room for
+            // a space and the longest number.
+            let short: String = base.chars().take(MAX_PRESET_NAME - 21).collect();
+            let short = short.trim_end();
+            name = super::import_name(short, |n| n == short || taken.contains(n));
+        }
         taken.insert(name.clone());
         saved.push(ScreenExportPreset { name: name.clone(), settings });
         imported.push(name);
@@ -774,7 +797,7 @@ pub(super) fn presets_import(s: &mut Session, p: &Value) -> Result<Value> {
 /// `settings` (a document's export settings) with export preset `name` applied as the Asset
 /// Export panel applies one: its formats (or mobile/density `preset`), its format settings over
 /// the ones there, its prefix (none when it has none), its folders (`folders`, or `subfolders`)
-/// with Create Sub-folders on for every mode but `none`, and its anti-aliasing.
+/// with Create Sub-folders on for a folder per row, and its anti-aliasing.
 pub(crate) fn with_export_preset(s: &Session, cmd: &str, settings: &mut Map<String, Value>, name: &str) -> Result<()> {
     let preset = find_preset(s, name).ok_or_else(|| bad(cmd, format!("no export preset `{name}` (see document.exportPresets.list)")))?.settings;
     if let Some(formats) = preset.get("formats") {
@@ -803,7 +826,7 @@ pub(crate) fn with_export_preset(s: &Session, cmd: &str, settings: &mut Map<Stri
         None => _ = settings.remove("prefix"),
     }
     // Its `folders` (Export for Screens shows it), else its `subfolders` (a folder per row or
-    // none). Every mode but `none` sorts the files into sub-folders.
+    // none). Create Sub-folders is on for a folder per row, as the dialog sets it.
     let folders = preset
         .get("folders")
         .and_then(Value::as_str)
@@ -811,7 +834,7 @@ pub(crate) fn with_export_preset(s: &Session, cmd: &str, settings: &mut Map<Stri
         .or_else(|| preset.get("subfolders").and_then(Value::as_bool).map(|b| if b { "rows" } else { "none" }));
     if let Some(f) = folders {
         settings.insert("folders".into(), json!(f));
-        settings.insert("subfolders".into(), json!(f != "none"));
+        settings.insert("subfolders".into(), json!(f == "rows"));
     }
     if let Some(aa) = preset.get("antiAlias") {
         settings.insert("antiAlias".into(), aa.clone());

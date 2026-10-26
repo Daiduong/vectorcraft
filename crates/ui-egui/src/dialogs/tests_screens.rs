@@ -1037,8 +1037,9 @@ fn a_preset_with_empty_folders_uses_its_subfolders() {
     assert_eq!((field(&app, "folders"), field(&app, "subfolders")), (json!("none"), json!(false)));
 }
 
-/// Export Preset… writes the current preset to a file and Import Preset… adds the presets of a
-/// file to the dropdown, as does opening the file while the dialog is open (the web's Import).
+/// The Asset Export panel's Export Preset… writes a preset to a file and its Import Preset… adds
+/// the presets of a file, which the open dialog's dropdown then lists, as it does after opening
+/// the file (the web's Import).
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn export_preset_and_import_preset_go_through_files() {
@@ -1110,7 +1111,8 @@ fn a_mobile_preset_sets_the_rows() {
 }
 
 /// `ui.dialog.set` of `exportPreset` applies the preset it names, as a pick in the dropdown does, so
-/// the dialog holds the settings of the preset it names; a name that is no preset's leaves Custom.
+/// the dialog holds the settings of the preset it names; a name that is no preset's is an error and
+/// leaves the dialog as it was.
 #[test]
 fn setting_the_export_preset_field_applies_the_preset() {
     use crate::control::{ControlRequest, Outcome};
@@ -1130,14 +1132,26 @@ fn setting_the_export_preset_field_applies_the_preset() {
     assert_eq!(r["result"]["fields"]["folders"], "format", "{r}");
     let r = set_preset(&mut app, "Never saved");
     assert_eq!(r["ok"], false, "{r}");
-    assert_eq!(field(&app, "exportPreset"), "");
+    assert_eq!(field(&app, "exportPreset"), "Logo Package");
     assert_eq!(field(&app, "folders"), "format");
+    // A request that fails on a later field changes none of its fields.
+    let fields = json!({"fields": [{"field": "folders", "value": "item"}, {"field": "exportPreset", "value": "Never saved"}]});
+    let (req, _rx) = ControlRequest::new("ui.dialog.set", fields);
+    let Outcome::Done(r) = crate::control::handle(&mut app, &ctx, &req) else { panic!("not done") };
+    assert_eq!(r["ok"], false, "{r}");
+    assert_eq!((field(&app, "exportPreset"), field(&app, "folders")), (json!("Logo Package"), json!("format")));
+    // In one request the fields apply in order: a field after the preset goes over it.
+    let fields = json!({"fields": [{"field": "exportPreset", "value": "Logo Package"}, {"field": "folders", "value": "item"}]});
+    let (req, _rx) = ControlRequest::new("ui.dialog.set", fields);
+    let Outcome::Done(r) = crate::control::handle(&mut app, &ctx, &req) else { panic!("not done") };
+    assert_eq!(r["ok"], true, "{r}");
+    assert_eq!((field(&app, "exportPreset"), field(&app, "folders")), (json!("Logo Package"), json!("item")));
 }
 
-/// Create Sub-folders (`subfolders`) is on for every Folders choice but All in One Folder, as an
-/// export preset sets it in the Asset Export panel's settings: after a preset, after `folders` is
-/// set, in the settings an export leaves, and when the dialog reopens. The Asset Export panel then
-/// sorts its files by the same folders.
+/// Create Sub-folders (`subfolders`) is on for a folder per row, as a pick in the Folders list sets
+/// it: after a preset, after `folders` is set, in the settings an export leaves, and when the
+/// dialog reopens. The Asset Export panel, with Create Sub-folders off, then puts its files in the
+/// folder itself.
 #[test]
 fn the_subfolders_field_follows_the_folders() {
     use crate::control::{ControlRequest, Outcome};
@@ -1154,8 +1168,8 @@ fn the_subfolders_field_follows_the_folders() {
     open(&mut app);
     let r = set_field(&mut app, "exportPreset", json!("Logo Package"));
     let fields = &r["result"]["fields"];
-    assert_eq!((fields["folders"].clone(), fields["subfolders"].clone()), (json!("format"), json!(true)), "{r}");
-    for (folders, on) in [("none", false), ("item", true), ("rows", true), ("none", false), ("itemFormat", true)] {
+    assert_eq!((fields["folders"].clone(), fields["subfolders"].clone()), (json!("format"), json!(false)), "{r}");
+    for (folders, on) in [("rows", true), ("none", false), ("rows", true), ("item", false), ("rows", true), ("itemFormat", false)] {
         set_field(&mut app, "folders", json!(folders));
         assert_eq!(field(&app, "subfolders"), json!(on), "{folders}");
     }
@@ -1165,20 +1179,19 @@ fn the_subfolders_field_follows_the_folders() {
     let r = confirm(&mut app).unwrap();
     assert!(r["files"][0].as_str().unwrap().contains("/png/"), "{r}");
     let saved = app.run("document.exportSettings", json!({})).unwrap()["settings"].clone();
-    assert_eq!((saved["folders"].clone(), saved["subfolders"].clone()), (json!("format"), json!(true)), "{saved}");
+    assert_eq!((saved["folders"].clone(), saved["subfolders"].clone()), (json!("format"), json!(false)), "{saved}");
     open(&mut app);
-    assert_eq!((field(&app, "folders"), field(&app, "subfolders")), (json!("format"), json!(true)));
+    assert_eq!((field(&app, "folders"), field(&app, "subfolders")), (json!("format"), json!(false)));
     app.ui.dialog = None;
     app.run("select.all", json!({})).unwrap();
     app.run("assets.add", json!({})).unwrap();
     let r = app.run("assets.export", json!({"folder": folder})).unwrap();
-    assert!(r["files"][0].as_str().unwrap().contains("/png/"), "{r}");
+    assert!(!r["files"][0].as_str().unwrap().contains("/png/"), "{r}");
     let _ = std::fs::remove_dir_all(dir);
 }
 
-/// Import Preset… and Export Preset…, in the dialog and in the Asset Export panel, show their file
-/// dialogs off the UI thread (as sheets on macOS) and read or write the file when the dialog
-/// answers.
+/// The Asset Export panel's Import Preset… and Export Preset… show their file dialogs off the UI
+/// thread (as sheets on macOS) and read or write the file when the dialog answers.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn preset_files_ask_off_the_ui_thread() {
@@ -1197,40 +1210,61 @@ fn preset_files_ask_off_the_ui_thread() {
     let file = file.to_string_lossy().to_string();
     let names = |app: &VectorcraftApp| app.session.prefs.screen_export_presets.iter().map(|p| p.name.clone()).collect::<Vec<_>>();
     let poll = |app: &mut VectorcraftApp| crate::picks::poll(app, &egui::Context::default());
-    // The dialog's buttons, on the open dialog as the app draws it.
-    open(&mut app);
-    let pick = |app: &mut VectorcraftApp, pick: PresetPick| {
-        let mut d = app.ui.dialog.take().unwrap();
-        export_for_screens::preset_pick(app, &mut d, pick);
-        app.ui.dialog = Some(d);
-    };
-    pick(&mut app, PresetPick::Export("Pack".into()));
+    let ctx = egui::Context::default();
+    let doc = app.session.active().unwrap().uid;
+    asset_export::preset(&mut app, &ctx, doc, PresetPick::Export("Pack".into()));
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Save(p)] if p.name == "Pack.vcexportpresets"), "{:?}", shown.requests());
     assert!(written.borrow().is_empty() && app.ui.status.is_empty(), "{}", app.ui.status);
     shown.answer(&["/presets/pack.vcexportpresets"]);
     poll(&mut app);
     assert_eq!(*written.borrow(), ["/presets/pack.vcexportpresets"], "{}", app.ui.status);
-    pick(&mut app, PresetPick::Import);
+    asset_export::preset(&mut app, &ctx, doc, PresetPick::Import);
     assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]), "{:?}", shown.requests());
     assert_eq!(names(&app), ["Pack"]);
     shown.answer(&[&file]);
     poll(&mut app);
     assert_eq!(names(&app), ["Pack", "Pack 2"], "{}", app.ui.status);
-    assert_eq!(kind(&app), Some(export_for_screens::KIND));
-    assert!(field(&app, "__exportPresets").as_array().unwrap().iter().any(|p| p["name"] == "Pack 2"), "the dropdown lists it");
-    // The panel's buttons.
-    app.ui.dialog = None;
-    let ctx = egui::Context::default();
-    let doc = app.session.active().unwrap().uid;
-    asset_export::preset(&mut app, &ctx, doc, PresetPick::Export("Pack 2".into()));
-    assert!(matches!(shown.requests().as_slice(), [PickRequest::Save(p)] if p.name == "Pack 2.vcexportpresets"), "{:?}", shown.requests());
-    shown.answer(&["/presets/pack-2.vcexportpresets"]);
-    poll(&mut app);
-    assert_eq!(written.borrow().last().map(String::as_str), Some("/presets/pack-2.vcexportpresets"), "{}", app.ui.status);
-    asset_export::preset(&mut app, &ctx, doc, PresetPick::Import);
-    assert!(matches!(shown.requests().as_slice(), [PickRequest::Open(_)]), "{:?}", shown.requests());
-    shown.answer(&[&file]);
-    poll(&mut app);
-    assert_eq!(names(&app), ["Pack", "Pack 2", "Pack 3"], "{}", app.ui.status);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The dialog's Export Preset row has no Import Preset… or Export Preset…: those picks change
+/// nothing there.
+#[test]
+fn the_dialog_leaves_preset_files_to_the_panel() {
+    use export_for_screens::PresetPick;
+    let (mut app, _) = app(1, false);
+    open(&mut app);
+    let before = serde_json::to_value(&app.ui.dialog).unwrap();
+    for pick in [PresetPick::Import, PresetPick::Export("Logo Package".into())] {
+        let mut d = app.ui.dialog.take().unwrap();
+        export_for_screens::preset_pick(&mut app, &mut d, pick);
+        app.ui.dialog = Some(d);
+    }
+    assert_eq!(serde_json::to_value(&app.ui.dialog).unwrap(), before);
+    assert_eq!(app.ui.status, "");
+}
+
+/// The dialog keeps its list of export presets from frame to frame, and builds it again when the
+/// saved presets change.
+#[test]
+fn the_dialog_builds_the_preset_list_again_only_when_the_presets_change() {
+    let (mut app, _) = app(1, false);
+    open(&mut app);
+    frame(&mut app);
+    let mark = |app: &mut VectorcraftApp| app.ui.dialog.as_mut().unwrap().fields.get_mut("__exportPresets").unwrap()[0]["mark"] = json!(true);
+    mark(&mut app);
+    frame(&mut app);
+    frame(&mut app);
+    assert_eq!(field(&app, "__exportPresets")[0]["mark"], true, "the list was not built again");
+    app.run("document.exportPresets.save", json!({"name": "Mine", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+    frame(&mut app);
+    let list = field(&app, "__exportPresets");
+    assert!(list[0].get("mark").is_none() && list.as_array().unwrap().iter().any(|p| p["name"] == "Mine"), "{list}");
+    // A saved preset changed under the same name is a change too.
+    mark(&mut app);
+    app.run("document.exportPresets.save", json!({"name": "Mine", "settings": {"formats": [{"format": "pdf"}]}})).unwrap();
+    frame(&mut app);
+    let list = field(&app, "__exportPresets");
+    let mine = list.as_array().unwrap().iter().find(|p| p["name"] == "Mine").unwrap();
+    assert_eq!(mine["settings"]["formats"][0]["format"], "pdf", "{list}");
 }

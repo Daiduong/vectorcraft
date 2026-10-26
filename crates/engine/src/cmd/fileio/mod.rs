@@ -194,7 +194,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Export Export Presets",
             [],
             None,
-            "{names?: [preset names, built-in ones too] (default: every saved preset), path?} write the presets as a .vcexportpresets file (JSON) → {path, count}; without path → {data: the file's text, count}",
+            "{names?: [preset names, built-in ones too] (default: every saved preset), path?} write the presets (at most 1000, as an import reads) as a .vcexportpresets file (JSON) → {path, count}; without path → {data: the file's text, count}",
             always,
             screens::presets_export
         ),

@@ -242,8 +242,8 @@ fn the_export_preset_row_applies_saves_and_lists_presets() {
     super::asset_export::preset(&mut app, &ctx, doc, crate::dialogs::ScreenPresetPick::Save("Mine".into()));
     let mine = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Mine").expect("saved").clone();
     assert_eq!(mine.settings["formats"], settings["formats"]);
-    // The preset's folders (a folder per format) are saved with it.
-    assert_eq!((mine.settings.get("folders"), mine.settings.get("subfolders")), (Some(&json!("format")), Some(&json!(true))), "{:?}", mine.settings);
+    // Create Sub-folders, off after a preset that sorts by format, is saved with it.
+    assert_eq!((mine.settings.get("folders"), mine.settings.get("subfolders")), (None, Some(&json!(false))), "{:?}", mine.settings);
     let texts = frame(&ctx, &mut app, vec![], false);
     assert!(has(&texts, "Mine"), "the dropdown shows the preset saved");
     // A preset file opened while the panel shows (the web's Import) is in its dropdown.
@@ -258,7 +258,30 @@ fn the_export_preset_row_applies_saves_and_lists_presets() {
     app.run("assets.settings.set", json!({"exportPreset": "Flat"})).unwrap();
     super::asset_export::preset(&mut app, &ctx, doc, crate::dialogs::ScreenPresetPick::Save("Flat Again".into()));
     let again = app.session.prefs.screen_export_presets.iter().find(|p| p.name == "Flat Again").expect("saved").clone();
-    assert_eq!((again.settings.get("preset"), again.settings.get("folders")), (Some(&json!("mobile")), Some(&json!("none"))), "{:?}", again.settings);
+    assert_eq!(
+        (again.settings.get("preset"), again.settings.get("subfolders")),
+        (Some(&json!("mobile")), Some(&json!(false))),
+        "{:?}",
+        again.settings
+    );
+}
+
+/// The panel keeps its list of export presets from frame to frame, and builds it again when the
+/// saved presets change.
+#[test]
+fn the_panel_builds_the_preset_list_again_only_when_the_presets_change() {
+    let (mut app, _, _) = app(true);
+    let ctx = egui::Context::default();
+    crate::theme::install_fonts(&ctx);
+    frame(&ctx, &mut app, vec![], false);
+    app.asset_export_presets[0]["mark"] = json!(true);
+    frame(&ctx, &mut app, vec![], false);
+    frame(&ctx, &mut app, vec![], false);
+    assert_eq!(app.asset_export_presets[0]["mark"], true, "the list was not built again");
+    app.run("document.exportPresets.save", json!({"name": "Mine", "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+    frame(&ctx, &mut app, vec![], false);
+    let list = &app.asset_export_presets;
+    assert!(list[0].get("mark").is_none() && list.as_array().unwrap().iter().any(|p| p["name"] == "Mine"), "{list}");
 }
 
 #[cfg(not(target_arch = "wasm32"))]

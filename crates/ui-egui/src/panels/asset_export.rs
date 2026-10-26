@@ -18,12 +18,12 @@ use egui::{Color32, Rect, Sense, Stroke, StrokeKind, Ui, vec2};
 use serde_json::{Value, json};
 use vectorcraft_doc::{ExportAsset, Node, NodeId};
 use vectorcraft_engine::DocState;
-use vectorcraft_engine::cmd::fileio::{SCREEN_SETTINGS_KEYS, ScreenExportPreset, screen_export_preset_list};
+use vectorcraft_engine::cmd::fileio::SCREEN_SETTINGS_KEYS;
 
 use super::{pstate, set_pstate};
 use crate::dialogs::{
     EXPORT_FOR_SCREENS, ScreenPresetPick, open_export_for_screens_assets, screen_export_preset, screen_formats, screen_import_presets,
-    screen_preset_row, screen_saved_options, screen_saved_rows,
+    screen_preset_list, screen_preset_row, screen_saved_options, screen_saved_rows,
 };
 use crate::state::Dialog;
 use crate::theme::Tokens;
@@ -262,24 +262,21 @@ enum Settings {
     Preset(ScreenPresetPick),
 }
 
-/// The export settings: Export for Screens' Export Preset row (`saved`: the saved presets) and
-/// format rows on the document's shared settings. Returns the change asked for and how many files
-/// one asset makes.
-fn settings(ui: &mut Ui, st: &DocState, saved: &[ScreenExportPreset]) -> (Option<Settings>, usize) {
+/// The export settings: Export for Screens' Export Preset row (`presets`: the rows of
+/// `document.exportPresets.list`) with Import Preset… and Export Preset…, and the format rows on
+/// the document's shared settings. Returns the change asked for and how many files one asset
+/// makes.
+fn settings(ui: &mut Ui, st: &DocState, presets: &Value) -> (Option<Settings>, usize) {
     let (rows, preset) = screen_saved_rows(&st.doc.export_settings);
     let preset = preset.unwrap_or_default().to_string();
     let n = rows.len();
     let (doc, current): (u64, String) = pstate(ui.ctx(), PRESET);
-    let presets = screen_export_preset_list(saved);
     let current = if doc == st.uid { current } else { String::new() };
-    let mut d = Dialog::new(
-        EXPORT_FOR_SCREENS,
-        json!({ "formats": &rows, "preset": preset, "__settings": "", "__exportPresets": presets, "exportPreset": current }),
-    );
+    let mut d = Dialog::new(EXPORT_FOR_SCREENS, json!({ "formats": &rows, "preset": preset, "__settings": "", "exportPreset": current }));
     if let Some(name) = pstate::<Option<String>>(ui.ctx(), SAVING) {
         d.fields.insert("__savePreset".into(), json!(name));
     }
-    let pick = screen_preset_row(ui, &mut d);
+    let pick = screen_preset_row(ui, &mut d, presets, true);
     set_pstate(ui.ctx(), SAVING, d.fields.get("__savePreset").and_then(Value::as_str).map(str::to_string));
     ui.add_space(4.0);
     screen_formats(ui, &mut d);
@@ -302,6 +299,7 @@ fn settings(ui: &mut Ui, st: &DocState, saved: &[ScreenExportPreset]) -> (Option
 
 pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
+    screen_preset_list(&mut app.asset_export_presets, &app.session.prefs.screen_export_presets);
     let Some(st) = app.session.active() else {
         widgets::dim_label(ui, tl!("No document"));
         return;
@@ -328,7 +326,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     });
     ui.add_space(6.0);
     widgets::section_header(ui, tl!("Export Settings"));
-    let (change, files_each) = settings(ui, st, &app.session.prefs.screen_export_presets);
+    let (change, files_each) = settings(ui, st, &app.asset_export_presets);
     let doc = st.uid;
     let all: Vec<u64> = st.doc.assets.iter().map(|a| a.id).collect();
     let has_art = !st.selection.is_empty();
@@ -413,9 +411,10 @@ pub(crate) fn preset(app: &mut VectorcraftApp, ctx: &egui::Context, doc: u64, pi
         }
         ScreenPresetPick::Save(name) => {
             let settings = shared_settings(app);
-            app.run("document.exportPresets.save", json!({ "name": name, "settings": settings })).map(|_| {
+            // The name as saved (trimmed and capped).
+            app.run("document.exportPresets.save", json!({ "name": name, "settings": settings })).map(|r| {
                 set_pstate(ctx, SAVING, None::<String>);
-                set_pstate(ctx, PRESET, (doc, name));
+                set_pstate(ctx, PRESET, (doc, r["name"].as_str().unwrap_or_default().to_string()));
             })
         }
         ScreenPresetPick::Delete(name) => {
@@ -451,18 +450,12 @@ pub(crate) fn preset(app: &mut VectorcraftApp, ctx: &egui::Context, doc: u64, pi
 }
 
 /// The settings the panel shows, as a preset keeps them: the shared settings, with the row shown
-/// when the document has no rows or mobile/density preset of its own, and the folders of a preset
-/// applied while Create Sub-folders is on, or `none` (as `assets.export` sorts the files).
+/// when the document has no rows or mobile/density preset of its own.
 fn shared_settings(app: &VectorcraftApp) -> Value {
     let Some(st) = app.session.active() else { return json!({}) };
     let saved = &st.doc.export_settings;
     let mut settings: serde_json::Map<String, Value> =
         SCREEN_SETTINGS_KEYS.iter().filter_map(|k| Some((k.to_string(), saved.get(*k).filter(|v| !v.is_null())?.clone()))).collect();
-    if let Some(f) = saved.get("folders").filter(|f| f.is_string())
-        && (settings.get("subfolders").and_then(Value::as_bool) == Some(true) || f.as_str() == Some("none"))
-    {
-        settings.insert("folders".into(), f.clone());
-    }
     let (rows, preset) = screen_saved_rows(saved);
     if preset.is_none() {
         settings.remove("preset");

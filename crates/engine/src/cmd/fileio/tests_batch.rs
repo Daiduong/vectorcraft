@@ -293,6 +293,13 @@ fn export_presets_export_and_import() {
     let r = other.execute("document.exportPresets.import", &json!({"data": many(1000)})).unwrap();
     let imported = r["imported"].as_array().unwrap();
     assert_eq!((imported.len(), imported.first(), imported.last()), (1000, Some(&json!("Same")), Some(&json!("Same 1000"))));
+    // An export writes no file that an import refuses: at most 1,000 presets.
+    assert!(other.prefs.screen_export_presets.len() > 1000);
+    assert!(other.execute("document.exportPresets.export", &json!({})).is_err(), "every saved preset");
+    let names: Vec<String> = other.prefs.screen_export_presets.iter().take(1001).map(|p| p.name.clone()).collect();
+    assert!(other.execute("document.exportPresets.export", &json!({ "names": names })).is_err(), "1,001 names");
+    let r = other.execute("document.exportPresets.export", &json!({ "names": names[..1000] })).unwrap();
+    assert_eq!(r["count"], 1000);
 }
 
 /// An imported preset whose name is taken and ends in a number gets the next free number, not a
@@ -316,4 +323,28 @@ fn an_imported_numbered_name_counts_on() {
     assert_eq!(s.execute("document.exportPresets.import", &json!({ "data": data })).unwrap()["imported"], json!(["Logo Package 2"]));
     let data = s.execute("document.exportPresets.export", &json!({"names": ["Logo Package 2"]})).unwrap()["data"].clone();
     assert_eq!(s.execute("document.exportPresets.import", &json!({ "data": data })).unwrap()["imported"], json!(["Logo Package 3"]));
+}
+
+/// A preset name, imported or saved, keeps at most 255 characters, as an asset name does.
+#[test]
+fn export_preset_names_are_capped() {
+    let mut s = session(1);
+    let long = "é".repeat(300);
+    let capped = "é".repeat(255);
+    let file = json!({"format": "vcexportpresets", "presets": [{"name": long, "settings": {"formats": [{"format": "png"}]}}]}).to_string();
+    let r = s.execute("document.exportPresets.import", &json!({ "data": file })).unwrap();
+    assert_eq!(r["imported"], json!([capped]));
+    let r = s.execute("document.exportPresets.save", &json!({"name": format!("  {}", "w".repeat(400)), "settings": {}})).unwrap();
+    assert_eq!(r["name"], "w".repeat(255));
+    let names: Vec<usize> = s.prefs.screen_export_presets.iter().map(|p| p.name.chars().count()).collect();
+    assert_eq!(names, [255, 255]);
+    // The same long name imported again gets a number within the limit, and saving under the name
+    // it got changes that preset alone.
+    let r = s.execute("document.exportPresets.import", &json!({ "data": file })).unwrap();
+    let again = r["imported"][0].as_str().unwrap().to_string();
+    assert!(again.chars().count() <= 255 && again != capped && again.ends_with(" 2"), "{again}");
+    s.execute("document.exportPresets.save", &json!({"name": again, "settings": {"formats": [{"format": "svg"}]}})).unwrap();
+    let formats: Vec<Option<&str>> =
+        s.prefs.screen_export_presets.iter().map(|p| p.settings.get("formats").and_then(|f| f[0]["format"].as_str())).collect();
+    assert_eq!(formats, [Some("png"), None, Some("svg")]);
 }

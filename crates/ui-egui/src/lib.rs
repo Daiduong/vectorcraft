@@ -597,6 +597,9 @@ pub struct VectorcraftApp {
     pub(crate) ime_discard: bool,
     /// Preferences were confirmed (see [`Self::take_prefs_changed`]).
     pub(crate) prefs_changed: bool,
+    /// The export presets the Asset Export panel lists (`document.exportPresets.list`'s rows), built
+    /// again when the saved presets change ([`dialogs::screen_preset_list`]).
+    pub(crate) asset_export_presets: Value,
     /// Whether the last frame's input reported a touch screen (Preferences › Devices › Touch Workspace).
     pub touch_screen: bool,
     /// A numeric field is being scrubbed: the document's edits meanwhile are one undo step
@@ -844,6 +847,7 @@ impl VectorcraftApp {
             ime_caret_rect: None,
             ime_discard: false,
             prefs_changed: false,
+            asset_export_presets: Value::Null,
             touch_screen: false,
             scrub_group: false,
             scrub_scope: None,
