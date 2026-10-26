@@ -9,7 +9,10 @@ pub const MAX_OPEN_BYTES: u64 = 512 << 20;
 /// `Err` with the reason posted back as `vectorcraft:failed` when `len` bytes are over the cap.
 pub fn check_open_size(name: &str, len: u64) -> Result<(), String> {
     if len > MAX_OPEN_BYTES {
-        return Err(format!("{name} wasn't opened: it is {len} bytes, larger than the {} MB VectorCraft opens from the host page", MAX_OPEN_BYTES >> 20));
+        return Err(format!(
+            "{name} wasn't opened: it is {len} bytes, larger than the {} MB VectorCraft opens from the host page",
+            MAX_OPEN_BYTES >> 20
+        ));
     }
     Ok(())
 }
