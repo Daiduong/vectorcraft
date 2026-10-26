@@ -455,8 +455,10 @@ pub enum Overlay {
     Label { p: Point, text: String, color: [u8; 3] },
     /// Measurement pill near the cursor (grey box with white text).
     Measure { p: Point, text: String },
-    /// Translucent filled quad (text selection highlight), RGBA.
+    /// Translucent filled quad (crop, perspective plane shading), RGBA.
     Highlight { quad: [Point; 4], color: [u8; 4] },
+    /// Inverting quad (inverse-video text selection highlight, matching reference behaviour).
+    Invert { quad: [Point; 4] },
     /// A colour chip of fixed screen size (a gradient stop), RGBA; ringed when selected.
     Swatch { p: Point, color: [u8; 4], selected: bool },
     /// A hairline in a translucent colour (perspective gridlines), RGBA.

@@ -31,6 +31,7 @@ pub mod floating;
 pub mod font_menu;
 mod frame_rate;
 mod free_transform;
+pub mod gpu_invert;
 pub mod graphics;
 pub mod i18n;
 pub mod icon_data;

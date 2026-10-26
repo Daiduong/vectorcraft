@@ -657,7 +657,7 @@ fn eyedropper_shift_color_preserves_other_characters_and_clears_on_deselect() {
     assert_eq!(t.runs[2].style, before.first_style());
     assert_eq!(t.runs[1].style.fill.color().unwrap().to_hex(), "#00ff00");
     assert_eq!(t.runs[1].style.size, before.first_style().size);
-    assert!(s.overlays(view).iter().any(|o| matches!(o, vectorcraft_tools::Overlay::Highlight { .. })), "the highlighted range remains visible");
+    assert!(s.overlays(view).iter().any(|o| matches!(o, vectorcraft_tools::Overlay::Invert { .. } | vectorcraft_tools::Overlay::Highlight { .. })), "the highlighted range remains visible");
     s.execute("select.none", &json!({})).unwrap();
     assert!(s.tool_options().get("editing").is_none_or(Value::is_null));
     s.execute("select.set", &json!({"ids": [dst.0]})).unwrap();

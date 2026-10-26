@@ -5039,6 +5039,7 @@ dependencies = [
  "bytemuck",
  "craft-ui",
  "egui",
+ "egui-wgpu",
  "egui_extras",
  "egui_kittest",
  "image",
@@ -5066,6 +5067,7 @@ dependencies = [
  "vectorcraft-tools",
  "wat",
  "web-time",
+ "wgpu",
 ]
 
 [[package]]
