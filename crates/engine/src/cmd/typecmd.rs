@@ -1903,6 +1903,57 @@ mod area_tests {
         assert_eq!(s.doc().unwrap().history.undo.len(), steps);
     }
 
+    /// Convert to Text of a list whose markers are aligned right writes the same characters as for
+    /// a list aligned left, the marker and then a tab, and gives the paragraphs the same tab stops:
+    /// the text after the tab stays where it was, and the marker moves to the first line's start,
+    /// where a list aligned left draws it. Numbers narrower than the hanging indent (their tab went
+    /// to the left indent) and wider (their tab went to the next default stop), and bullets.
+    #[test]
+    fn convert_to_text_of_markers_aligned_right_keeps_the_text_in_place() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"width": 800, "height": 800})).unwrap();
+        let text_glyphs = |s: &Session, id: u64| {
+            let Some(NodeKind::Text(t)) = s.doc().unwrap().doc.node(NodeId(id)).map(|n| &n.kind) else { panic!("text") };
+            let lay = vectorcraft_text::layout(vectorcraft_text::FontDb::global(), t);
+            let milli = |v: f64| (v * 1000.0).round() as i64;
+            lay.glyphs
+                .iter()
+                .filter(|g| g.len > 0 && !g.outline.elements().is_empty())
+                .map(|g| (g.gid, milli(g.origin.x), milli(g.origin.y)))
+                .collect::<Vec<_>>()
+        };
+        let plain = |s: &Session, id: u64| match &s.doc().unwrap().doc.node(NodeId(id)).unwrap().kind {
+            NodeKind::Text(t) => t.plain_text(),
+            _ => panic!("text"),
+        };
+        let items = (1..=10).map(|i| format!("Item {i}")).collect::<Vec<_>>().join("\n");
+        for (list, converted) in [
+            ("number", (1..=10).map(|i| format!("{i}.\tItem {i}")).collect::<Vec<_>>().join("\n")),
+            ("bullet", (1..=10).map(|i| format!("\u{2022}\tItem {i}")).collect::<Vec<_>>().join("\n")),
+        ] {
+            let make = |s: &mut Session, align: &str| {
+                let id = s
+                    .execute("text.create", &json!({"x": 300, "y": 10, "size": 20, "text": items, "area": {"width": 300, "height": 600}}))
+                    .unwrap()["id"]
+                    .as_u64()
+                    .unwrap();
+                s.execute("text.setFormat", &json!({"ids": [id], "list": list, "listAlign": align})).unwrap();
+                id
+            };
+            let (left, right) = (make(&mut s, "left"), make(&mut s, "right"));
+            let drawn_left = drawn_glyphs(&s, left);
+            let text_before = text_glyphs(&s, right);
+            assert_eq!(text_before, text_glyphs(&s, left), "{list}: the text starts at the same place with either alignment");
+            assert_ne!(drawn_glyphs(&s, right), drawn_left, "{list}: the markers aligned right are drawn elsewhere");
+            s.execute("text.convertListToText", &json!({"ids": [left, right]})).unwrap();
+            assert_eq!((plain(&s, left), plain(&s, right)), (converted.clone(), converted), "{list}: the marker, then a tab");
+            let after = text_glyphs(&s, right);
+            assert!(text_before.iter().all(|g| after.contains(g)), "{list}: the text stays where it was");
+            assert_eq!(drawn_glyphs(&s, right), drawn_left, "{list}: the markers start where a list aligned left draws them");
+            assert_eq!(drawn_glyphs(&s, left), drawn_left, "{list}: aligned left, every glyph stays");
+        }
+    }
+
     /// A right-to-left list paragraph converted to text starts with the number, its period and a
     /// tab, which are read first: the line draws its glyphs in the order it drew them with the
     /// marker, the number at the right with its period at its left. Letters and roman numerals

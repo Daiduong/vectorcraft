@@ -4577,8 +4577,9 @@ Type › Bullets and Numbering › Convert to Text runs `type.convertListToText`
 those the Type tool's selection touches, and that runs `text.convertListToText {ids?, start?, end?}`. The marker of
 each list paragraph becomes characters at the start of the paragraph: the bullet, or the number and its period as the
 paragraph showed it, then a tab. They are set in the marker's font, size and color: the style of the paragraph's first
-character without the attributes the marker leaves out. The paragraph leaves its list. When the marker's tab went to
-the left indent, the paragraph gets a left-aligned tab stop without a leader there, in place of any stop there, so that
+character without the attributes the marker leaves out. The paragraph leaves its list. A marker aligned right
+(`listAlign` `right`) is written the same way: its characters go to the first line's start, where a marker aligned left
+is drawn, and the text after its tab stays where it was. When the marker's tab went to the left indent, the paragraph gets a left-aligned tab stop without a leader there, in place of any stop there, so that
 the text after the tab starts where it started after the marker. When the marker's tab went to a tab stop, the
 converted tab goes to the same place when that stop is left-aligned and no stop there or past it has a leader. When a
 stop there or past it has a leader or is not left-aligned, or a right, center or decimal stop lies between the marker
