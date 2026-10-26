@@ -326,6 +326,7 @@
 	Apply Bullets	Aplicar Marcadores
 	Numbered List	Lista Numerada
 	Apply Numbers	Aplicar Numeração
+	Convert to Text	Converter em Texto
 	Filled Dot	Ponto Preenchido
 	Dash	Travessão
 	Hollow Circle	Círculo Vazado
@@ -2322,7 +2323,22 @@
 	Saved Selections	Seleções Salvas
 	Saved View 1	Visualização Salva 1
 	Saved View 10	Visualização Salva 10
+	Saved View 11	Visualização Salva 11
+	Saved View 12	Visualização Salva 12
+	Saved View 13	Visualização Salva 13
+	Saved View 14	Visualização Salva 14
+	Saved View 15	Visualização Salva 15
+	Saved View 16	Visualização Salva 16
+	Saved View 17	Visualização Salva 17
+	Saved View 18	Visualização Salva 18
+	Saved View 19	Visualização Salva 19
 	Saved View 2	Visualização Salva 2
+	Saved View 20	Visualização Salva 20
+	Saved View 21	Visualização Salva 21
+	Saved View 22	Visualização Salva 22
+	Saved View 23	Visualização Salva 23
+	Saved View 24	Visualização Salva 24
+	Saved View 25	Visualização Salva 25
 	Saved View 3	Visualização Salva 3
 	Saved View 4	Visualização Salva 4
 	Saved View 5	Visualização Salva 5
@@ -3938,6 +3954,7 @@ axis	Both	Ambos
 @msg	{_1} is already used by {_2}	{_1} já é usado por {_2}
 @msg	{_1} is reserved by the system	{_1} é reservado pelo sistema
 @msg	{_1} linked file(s) can't be read here: their previews show	{_1} arquivo(s) vinculado(s) não podem ser lidos aqui: suas visualizações são exibidas
+@msg	{undecoded} image(s) couldn't be decoded and show as crossed boxes	não foi possível decodificar {undecoded} imagem(ns): elas aparecem como caixas marcadas com um X
 @msg	{_1} linked image(s) changed on disk: Update Links shows the new versions	{_1} imagem(ns) vinculada(s) mudou(aram) no disco: Atualizar links mostra as novas versões
 @msg	{_1}: not saved, so not closed	{_1}: não salvo, portanto não fechado
 @msg	{bpp}-bit bitmaps can't be read	bitmaps de {bpp} bits não podem ser lidos
