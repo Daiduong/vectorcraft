@@ -111,12 +111,13 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
 }
 
 /// Whether the window shows the system's title bar instead of the app drawing its own: Windows
-/// and Linux with Preferences › User Interface › System Title Bar. macOS always has system
-/// decorations, but keeps the in-app brand mark, so it never counts as system mode here; nor
-/// does the web build (the browser tab has no document title), nor an embedder that never
-/// turned the preference on.
+/// and Linux with Preferences › User Interface › System Title Bar, and Linux when
+/// `VECTORCRAFT_TITLEBAR` kept the desktop's frame ([`VectorcraftApp::titlebar_from_env`]). macOS
+/// always has system decorations, but keeps the in-app brand mark, so it never counts as system
+/// mode here; nor does the web build (the browser tab has no document title), nor an embedder
+/// that never turned the preference on.
 pub fn system_title_bar(app: &VectorcraftApp) -> bool {
-    !app.custom_titlebar && app.session.prefs.system_title_bar && !cfg!(any(target_os = "macos", target_arch = "wasm32"))
+    !app.custom_titlebar && (app.session.prefs.system_title_bar || app.titlebar_from_env) && !cfg!(any(target_os = "macos", target_arch = "wasm32"))
 }
 
 /// The OS window title: the active document's name suffixed with the app name (a `*` prefix
@@ -2214,6 +2215,19 @@ mod tests {
             assert_eq!(marks.is_empty(), system, "mark in system mode (custom={custom})");
             assert_eq!(uploads, if system { 0 } else { 1 }, "mark texture in system mode (custom={custom})");
         }
+    }
+
+    #[test]
+    fn a_desktop_frame_from_the_environment_variable_is_system_mode() {
+        // VECTORCRAFT_TITLEBAR=system with System Title Bar off: the desktop draws the title bar.
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.titlebar_from_env = true;
+        assert!(!app.session.prefs.system_title_bar);
+        assert_eq!(super::system_title_bar(&app), !cfg!(target_os = "macos"));
+        // VECTORCRAFT_TITLEBAR=app: VectorCraft draws it, whatever the preference says.
+        app.custom_titlebar = true;
+        app.run("prefs.set", json!({"key": "systemTitleBar", "value": true})).unwrap();
+        assert!(!super::system_title_bar(&app));
     }
 
     #[test]

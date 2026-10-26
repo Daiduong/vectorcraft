@@ -32,6 +32,8 @@ pub fn open(app: &mut VectorcraftApp, category: Option<&str>) {
     fields.insert("__smartGuides".into(), json!(app.ui.view.smart_guides));
     fields.insert("__snapToGrid".into(), json!(app.ui.view.snap_to_grid));
     fields.insert("__taskBar".into(), json!(app.ui.task_bar));
+    // Read-only: whether VECTORCRAFT_TITLEBAR chose this window's frame (System Title Bar's note).
+    fields.insert("__titlebarFromEnv".into(), json!(app.titlebar_from_env));
     app.ui.dialog = Some(Dialog { kind: "preferences".into(), fields });
 }
 
@@ -278,9 +280,16 @@ fn category_fields(ui: &mut egui::Ui, d: &mut Dialog, cat: &str) {
             // Windows and Linux only: macOS always has the system's title bar, the web has none.
             PrefKind::Bool if sp.key == "systemTitleBar" => {
                 if cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos"))) {
-                    bool_row(ui, d, sp.key, sp.label);
-                    // The window's decorations are chosen once, when the app starts.
-                    ui.label(egui::RichText::new(tl!("Applies the next time VectorCraft starts.")).color(t.text_dim).size(11.0));
+                    // The window's decorations are chosen once, when the app starts; while
+                    // VECTORCRAFT_TITLEBAR is set it chooses them, and the checkbox is dimmed.
+                    let from_env = d.bool("__titlebarFromEnv");
+                    ui.add_enabled_ui(!from_env, |ui| bool_row(ui, d, sp.key, sp.label));
+                    let note = if from_env {
+                        tl!("The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.")
+                    } else {
+                        tl!("Applies the next time VectorCraft starts.")
+                    };
+                    ui.label(egui::RichText::new(note).color(t.text_dim).size(11.0));
                 }
             }
             PrefKind::Bool => bool_row(ui, d, sp.key, sp.label),
@@ -644,6 +653,61 @@ mod tests {
         assert!(a.session.prefs.system_title_bar);
         let saved: Value = serde_json::from_slice(&serde_json::to_vec(&a.ui).unwrap()).unwrap();
         assert_eq!(saved["engine_prefs"]["systemTitleBar"], json!(true));
+    }
+
+    /// While VECTORCRAFT_TITLEBAR chooses the frame, System Title Bar says so in place of the
+    /// next-launch note, and its checkbox does not take clicks.
+    #[test]
+    fn system_title_bar_names_the_environment_variable_that_overrides_it() {
+        fn texts(s: &egui::Shape, out: &mut Vec<String>) {
+            match s {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| texts(s, out)),
+                _ => {}
+            }
+        }
+        let note = "The VECTORCRAFT_TITLEBAR environment variable chooses the title bar while it is set.";
+        let supported = cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos")));
+        for from_env in [false, true] {
+            let mut a = app();
+            a.titlebar_from_env = from_env;
+            open(&mut a, Some("User Interface"));
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(&mut a, ui.ctx()));
+            out.textures_delta.clear();
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| show(&mut a, ui.ctx()));
+            out.textures_delta.clear();
+            let mut shown = vec![];
+            out.shapes.iter().for_each(|c| texts(&c.shape, &mut shown));
+            assert_eq!(shown.iter().any(|t| t == note), supported && from_env, "{shown:?}");
+            assert_eq!(shown.iter().any(|t| t == "Applies the next time VectorCraft starts."), supported && !from_env, "{shown:?}");
+            // A click on the checkbox's label: it turns the preference on only without the variable.
+            let label = out.shapes.iter().find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text() == "System Title Bar" => Some(t.visual_bounding_rect()),
+                _ => None,
+            });
+            if let Some(r) = label {
+                for pressed in [true, false] {
+                    let input = egui::RawInput {
+                        events: vec![
+                            egui::Event::PointerMoved(r.center()),
+                            egui::Event::PointerButton {
+                                pos: r.center(),
+                                button: egui::PointerButton::Primary,
+                                pressed,
+                                modifiers: Default::default(),
+                            },
+                        ],
+                        ..Default::default()
+                    };
+                    let mut out = ctx.run_ui(input, |ui| show(&mut a, ui.ctx()));
+                    out.textures_delta.clear();
+                }
+                assert_eq!(a.ui.dialog.as_ref().unwrap().bool("systemTitleBar"), !from_env, "clicked with the variable {from_env}");
+            }
+            assert_eq!(label.is_some(), supported);
+        }
     }
 
     /// Performance › Linux Display Server (#2028): on Linux it shows the drawing-tablet note, and
