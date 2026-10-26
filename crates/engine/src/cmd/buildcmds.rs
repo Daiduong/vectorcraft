@@ -129,7 +129,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Make",
             ["Object", "Image Trace"],
             None,
-            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), enhanced?: false (the preset's enhanced version: with Auto Grouping, and with Shapes in all but High Fidelity Photo; Flat Logo has none and is traced as it is), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite (leave out white areas), ignoreColor?: \"#rrggbb\" (with ignoreWhite: the colour left out instead of white), snapCurvesToLines, shapes: false (filled outlines that are a circle, an ellipse, a rectangle or a regular polygon come out as that live shape), autoGrouping: false (each path that has others inside it is grouped with them), gradients: false (grayscale and color: an area whose colour changes evenly along one direction is one path with a linear gradient fill), fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors, warnings: [text…] (the image is over 1500 px on a side, so it traces more slowly; or it was traced scaled down; Flat Logo names only the size it traced a larger image at)}",
+            "{id?: image or Image Trace group (default: selection), preset?: name (imageTrace.presets), savedPreset?: {settings} (a saved preset's settings, which the journal records so a replay traces with them after the preset is changed, renamed or deleted; used in place of the saved preset `preset` names), enhanced?: false (the preset's enhanced version: with Auto Grouping, and with Shapes in all but High Fidelity Photo; Flat Logo has none and is traced as it is), params?: {mode: \"blackAndWhite\"|\"grayscale\"|\"color\"|\"logo\", threshold: 0-255, palette: \"limited\"|\"fullTone\"|\"automatic\"|\"documentLibrary\" (color mode; limited: the `colors` best colours, fullTone: as many as the tones need, more with colorDetail, automatic: flat art with its own colours, else fullTone, documentLibrary: at most `colors` of the library's colours, as they are), colors: 2-256, colorDetail: 0-100 (fullTone, automatic), library: \"document\" (the document's swatches) or a swatch library id or name (swatch.library.list; documentLibrary), paths: 0-100, corners: 0-100, noise: px, method: \"abutting\"|\"overlapping\", ignoreWhite (leave out white areas), ignoreColor?: \"#rrggbb\" (with ignoreWhite: the colour left out instead of white), snapCurvesToLines, shapes: false (filled outlines that are a circle, an ellipse, a rectangle or a regular polygon come out as that live shape), autoGrouping: false (each path that has others inside it is grouped with them), gradients: false (grayscale and color: an area whose colour changes evenly along one direction is one path with a linear gradient fill), fills: true, strokes: false (Create: lines up to strokeWidth wide become stroked centre lines; without fills, wider areas become stroked outlines), strokeWidth: px (10), logoColors?: [\"#rrggbb\"…] (mode logo: flat-colour logos only; colours found automatically or named here, white is always its own colour, at most ten; noise = areas under noise/10 px ignored; edges to a fraction of a pixel, sharp corners restored, lines and circles snapped; enclosed transparent areas are painted white unless ignoreWhite makes them holes; fills/strokes are ignored; gradients and photos are refused)}, view?: as imageTrace.setView (default: the traced object's own, else tracingResult), ids?: [id…] (instead of id)} → {id, paths, anchors, colors, warnings: [text…] (the image is over 1500 px on a side, so it traces more slowly; or it was traced scaled down; Flat Logo names only the size it traced a larger image at)}",
             has_selection_or_ids,
             |s, p| trace_make(s, p, false)
         ),
@@ -169,9 +169,29 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection_or_ids,
             trace_set_view
         ),
-        cmd!(query "imageTrace.presets", "Image Trace Presets", [], None, "{} → {presets: [{name, params, enhanced: the params of the preset's enhanced version, null if it has none}]}", always, |_, _| {
-            Ok(json!({ "presets": tr::presets().into_iter().map(|(n, p)| json!({ "name": n, "params": p, "enhanced": tr::enhanced_preset(n) })).collect::<Vec<_>>() }))
+        cmd!(query "imageTrace.presets", "Image Trace Presets", [], None, "{} → {presets: [{name, builtIn, params, enhanced: the params of the preset's enhanced version, null if it has none}]} the built-in presets, then the saved ones (builtIn false, enhanced null); any of these names works as imageTrace.make's `preset`", always, |s, _| {
+            let builtin = tr::presets().into_iter().map(|(n, p)| json!({ "name": n, "builtIn": true, "params": p, "enhanced": tr::enhanced_preset(n) }));
+            let saved = s.prefs.trace_presets.iter().map(|p| json!({ "name": p.name, "builtIn": false, "params": p.params, "enhanced": null }));
+            Ok(json!({ "presets": builtin.chain(saved).collect::<Vec<_>>() }))
         }),
+        cmd!(
+            query "imageTrace.presets.save",
+            "Save Image Trace Preset",
+            [],
+            None,
+            "{name?: (default: a new \"Tracing Preset N\"), newName?: rename the saved preset `name`, preset?: the preset to start from (default: the saved preset `name`, else Default), enhanced?, params?: {settings, as imageTrace.make takes them, over the preset's}} create or change a saved tracing preset, kept with the preferences (built-in ones can't change) → {name, params, created}",
+            always,
+            trace_presets_save
+        ),
+        cmd!(
+            query "imageTrace.presets.delete",
+            "Delete Image Trace Preset",
+            [],
+            None,
+            "{name} delete a saved tracing preset (built-in ones stay) → {deleted: name}",
+            always,
+            trace_presets_delete
+        ),
     ]
 }
 
@@ -963,24 +983,129 @@ fn view_param(cmd: &str, p: &Value) -> Result<Option<TraceView>> {
     v.as_str().and_then(TraceView::from_id).map(Some).ok_or_else(|| bad(cmd, format!("view must be one of {}", ids())))
 }
 
-/// The parameters command `c` traces with: the preset's, with `params` over them.
-fn trace_params(c: &str, p: &Value) -> Result<tr::TraceParams> {
-    let name = str_param(p, "preset").unwrap_or("Default");
+/// A saved Image Trace preset ([`crate::Prefs::trace_presets`]): a name and its settings.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TracePreset {
+    pub name: String,
+    #[serde(default)]
+    pub params: tr::TraceParams,
+}
+
+impl Session {
+    /// The saved tracing preset `name`, any case.
+    pub fn trace_preset(&self, name: &str) -> Option<&TracePreset> {
+        self.prefs.trace_presets.iter().find(|q| q.name.eq_ignore_ascii_case(name.trim()))
+    }
+
+    /// The index of the saved tracing preset `name`.
+    fn trace_preset_index(&self, name: &str) -> Option<usize> {
+        self.prefs.trace_presets.iter().position(|q| q.name.eq_ignore_ascii_case(name.trim()))
+    }
+
+    /// Whether `name` is a built-in preset's, "Custom" (changed settings, as the panel and a traced
+    /// object show them), or a saved preset's other than the one at `except`.
+    fn trace_preset_taken(&self, name: &str, except: Option<usize>) -> bool {
+        tr::preset(name).is_some() || name.trim().eq_ignore_ascii_case("Custom") || self.trace_preset_index(name).is_some_and(|i| Some(i) != except)
+    }
+
+    /// The first free "Tracing Preset N": the name a new tracing preset gets.
+    pub fn new_trace_preset_name(&self) -> String {
+        (1..).map(|i| format!("Tracing Preset {i}")).find(|n| !self.trace_preset_taken(n, None)).unwrap_or_default()
+    }
+}
+
+fn trace_presets_save(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "imageTrace.presets.save";
+    // A name or preset of the wrong type is an error, not dropped: dropping it would save other
+    // settings, or under another name.
+    let new_name = opt_str(C, p, "newName")?;
+    let preset = opt_str(C, p, "preset")?;
+    let name = match opt_str(C, p, "name")?.map(str::trim) {
+        Some("") => return Err(bad(C, "`name` is empty")),
+        Some(n) => n.to_string(),
+        None => s.new_trace_preset_name(),
+    };
+    if tr::preset(&name).is_some() {
+        return Err(bad(C, format!("`{name}` is a built-in preset and can't change: save it under another name")));
+    }
+    if name.eq_ignore_ascii_case("Custom") {
+        return Err(bad(C, "`Custom` stands for changed settings: save the preset under another name"));
+    }
+    let at = s.trace_preset_index(&name);
+    if at.is_none() && new_name.is_some() {
+        return Err(bad(C, format!("no saved preset named `{name}` to rename")));
+    }
+    // A saved preset changes from its own settings unless `preset` says where to start.
+    let mut q = p.clone();
+    if let (Some(i), Some(o), None) = (at, q.as_object_mut(), preset) {
+        o.insert("preset".into(), json!(s.prefs.trace_presets[i].name));
+    }
+    let params = trace_params(s, C, &q)?;
+    let name = match new_name.map(str::trim) {
+        Some("") => return Err(bad(C, "`newName` is empty")),
+        Some(n) if s.trace_preset_taken(n, at) => return Err(bad(C, format!("a preset named `{n}` exists"))),
+        Some(n) => n.to_string(),
+        None => at.map_or(name, |i| s.prefs.trace_presets[i].name.clone()),
+    };
+    let json_params = serde_json::to_value(&params).map_err(|e| EngineError::Other(e.to_string()))?;
+    let preset = TracePreset { name: name.clone(), params };
+    match at {
+        Some(i) => s.prefs.trace_presets[i] = preset,
+        None => s.prefs.trace_presets.push(preset),
+    }
+    Ok(json!({"name": name, "params": json_params, "created": at.is_none()}))
+}
+
+fn trace_presets_delete(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "imageTrace.presets.delete";
+    let name = opt_str(C, p, "name")?.ok_or_else(|| bad(C, "missing `name`"))?;
+    if tr::preset(name).is_some() {
+        return Err(bad(C, format!("`{name}` is a built-in preset and stays")));
+    }
+    let i = s.trace_preset_index(name).ok_or_else(|| bad(C, format!("no saved preset named `{name}`")))?;
+    Ok(json!({ "deleted": s.prefs.trace_presets.remove(i).name }))
+}
+
+/// The string `key` of `p` (`None` when it is missing or null); any other type is an error of
+/// command `c`.
+fn opt_str<'a>(c: &str, p: &'a Value, key: &str) -> Result<Option<&'a str>> {
+    match p.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(v)) => Ok(Some(v)),
+        Some(_) => Err(bad(c, format!("`{key}` must be a string"))),
+    }
+}
+
+/// The parameters command `c` traces with: the preset's (built-in, else the `savedPreset`
+/// settings a journal entry records, else saved), with `params` over them.
+fn trace_params(s: &Session, c: &str, p: &Value) -> Result<tr::TraceParams> {
+    let name = opt_str(c, p, "preset")?.unwrap_or("Default");
     let enhanced = switch_or(p, "enhanced", false, c)?;
-    // (A preset without an enhanced version is traced as it is.)
+    let recorded = match p.get("savedPreset").filter(|v| !v.is_null()) {
+        Some(v) => Some(serde_json::from_value::<tr::TraceParams>(v.clone()).map_err(|e| bad(c, format!("savedPreset: {e}")))?),
+        None => None,
+    };
+    // (A preset without an enhanced version, a saved one too, is traced as it is.)
     let base = enhanced.then(|| tr::enhanced_preset(name)).flatten().or_else(|| tr::preset(name));
-    let base = base.ok_or_else(|| bad(c, format!("unknown preset `{name}` (see imageTrace.presets)")))?;
-    let Some(over) = p.get("params").filter(|v| !v.is_null()) else { return Ok(base) };
-    let mut v = serde_json::to_value(&base).map_err(|e| EngineError::Other(e.to_string()))?;
-    let (Some(o), Some(src)) = (v.as_object_mut(), over.as_object()) else { return Err(bad(c, "params must be an object")) };
-    // A key that isn't one of the settings is an error, with the nearest setting.
-    if let Some(key) = src.keys().find(|k| !o.contains_key(k.as_str())) {
-        return Err(super::params::unknown(c, key, &o.keys().map(String::as_str).collect::<Vec<_>>()));
-    }
-    for (k, val) in src {
-        o.insert(k.clone(), val.clone());
-    }
-    let params: tr::TraceParams = serde_json::from_value(v).map_err(|e| bad(c, e.to_string()))?;
+    let base = base.or(recorded).or_else(|| s.trace_preset(name).map(|q| q.params.clone()));
+    let base = base.ok_or_else(|| bad(c, format!("unknown preset `{name}`: not a built-in or saved preset (see imageTrace.presets)")))?;
+    let params: tr::TraceParams = match p.get("params").filter(|v| !v.is_null()) {
+        None => base,
+        Some(over) => {
+            let mut v = serde_json::to_value(&base).map_err(|e| EngineError::Other(e.to_string()))?;
+            let (Some(o), Some(src)) = (v.as_object_mut(), over.as_object()) else { return Err(bad(c, "params must be an object")) };
+            // A key that isn't one of the settings is an error, with the nearest setting.
+            if let Some(key) = src.keys().find(|k| !o.contains_key(k.as_str())) {
+                return Err(super::params::unknown(c, key, &o.keys().map(String::as_str).collect::<Vec<_>>()));
+            }
+            for (k, val) in src {
+                o.insert(k.clone(), val.clone());
+            }
+            serde_json::from_value(v).map_err(|e| bad(c, e.to_string()))?
+        }
+    };
+    // (Recorded and saved settings are checked too.)
     if !params.fills && !params.strokes {
         return Err(bad(c, "Create needs fills, strokes or both"));
     }
@@ -1105,14 +1230,25 @@ fn grouped(d: &mut Document, nodes: Vec<Node>, parents: &[Option<usize>]) -> Vec
 
 fn trace_make(s: &mut Session, p: &Value, expand: bool) -> Result<Value> {
     let c = if expand { "imageTrace.makeAndExpand" } else { "imageTrace.make" };
-    let mut params = trace_params(c, p)?;
+    let mut params = trace_params(s, c, p)?;
     let view = view_param(c, p)?;
     let params_json = serde_json::to_value(&params).map_err(|e| EngineError::Other(e.to_string()))?;
-    // The preset's name if the parameters are exactly that preset's or its enhanced version's,
-    // else "Custom".
+    // The preset's name if the parameters are exactly that preset's or its enhanced version's (a
+    // saved preset's under its saved name), else "Custom".
     let named = str_param(p, "preset").unwrap_or("Default");
     let is = |b: Option<tr::TraceParams>| b.and_then(|b| serde_json::to_value(&b).ok()).as_ref() == Some(&params_json);
-    let preset_label = if is(tr::preset(named)) || is(tr::enhanced_preset(named)) { named.to_string() } else { "Custom".to_string() };
+    let saved = s.trace_preset(named).filter(|q| tr::preset(named).is_none() && is(Some(q.params.clone()))).map(|q| q.name.clone());
+    let preset_label = match saved {
+        Some(name) => name,
+        None if is(tr::preset(named)) || is(tr::enhanced_preset(named)) => named.to_string(),
+        None => "Custom".to_string(),
+    };
+    // A saved preset's settings join the journal entry, so a replay traces as this run did after
+    // the preset is changed, renamed or deleted.
+    if let Some(q) = s.trace_preset(named).filter(|_| tr::preset(named).is_none()) {
+        let recorded = serde_json::to_value(&q.params).map_err(|e| EngineError::Other(e.to_string()))?;
+        s.note_journal("savedPreset", recorded);
+    }
     let roots = root_ids(s, p)?;
     // The image (inside a trace group, or selected directly).
     let (target, img) = {
