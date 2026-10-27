@@ -3765,6 +3765,44 @@ fn wheel_notches_zoom_in_a_glide() {
     assert_eq!(app.view().unwrap().zoom / before, done, "and it stops");
 }
 
+/// #4283: with Performance › Animated Zoom off, a wheel notch zooms the whole step on the frame
+/// it arrives, both the plain wheel with Zoom with Mouse Wheel and Alt-wheel without it.
+#[test]
+fn wheel_notches_zoom_at_once_without_animated_zoom() {
+    let mut app = VectorcraftApp::new(Session::new(), Default::default());
+    app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    app.session.execute("prefs.set", &json!({"key": "animatedZoom", "value": false})).unwrap();
+    let ctx = egui::Context::default();
+    let run = |app: &mut VectorcraftApp| {
+        let mut raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), ..Default::default() };
+        app.raw_input_hook(&ctx, &mut raw);
+        let mut out = ctx.run_ui(raw, |ui| show(app, ui));
+        out.textures_delta.clear();
+    };
+    run(&mut app);
+    let at = app.canvas_rect.unwrap().center();
+    for (wheel_zooms, alt) in [(true, false), (false, true)] {
+        app.session.execute("prefs.set", &json!({"key": "zoomWithMouseWheel", "value": wheel_zooms})).unwrap();
+        let before = app.view().unwrap().zoom;
+        crate::tests_synthetic::control(&mut app, &ctx, "ui.wheel", json!({"x": at.x, "y": at.y, "dy": 1, "alt": alt}));
+        // The first frame the zoom moves (the event may land a frame later).
+        let mut first = 1.0;
+        for _ in 0..3 {
+            run(&mut app);
+            first = app.view().unwrap().zoom / before;
+            if first != 1.0 {
+                break;
+            }
+        }
+        assert!(first > 1.01, "the notch zooms in (wheel zooms {wheel_zooms}, alt {alt}: {first})");
+        for _ in 0..30 {
+            run(&mut app);
+        }
+        let done = app.view().unwrap().zoom / before;
+        assert!((done - first).abs() < 1e-9, "all of it on the first frame (wheel zooms {wheel_zooms}, alt {alt}: {first} then {done})");
+    }
+}
+
 /// In each frame where a wheel scroll moves the view, the hover point (read by the rulers'
 /// pointer marks, the Info panel, the hover highlight and the tool cursor) is the document point
 /// under the pointer in the view the canvas draws in that frame.
