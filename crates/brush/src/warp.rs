@@ -159,6 +159,79 @@ impl AlongMap {
     }
 }
 
+/// The affine that reproduces `f` over `b` to within `tol`, if one does.
+///
+/// Bending is only non-linear where the track bends. On a straight run the arc-length map and the
+/// normal offset are both linear, so the art is just moved, turned and scaled, and flattening it
+/// into chords throws its curves away for nothing (#3926).
+///
+/// Derived from three corners and then *checked* against a grid: it is used only where it
+/// reproduces the real map at least as closely as the flattening would have, so where it does not
+/// hold the result is exactly what it was before.
+fn affine_fit(f: &dyn Fn(Point) -> Point, b: Rect, tol: f64) -> Option<Affine> {
+    let (w, h) = (b.width(), b.height());
+    if !(w > 1e-9 && h > 1e-9 && tol.is_finite() && tol > 0.0) {
+        return None;
+    }
+    let origin = Point::new(b.x0, b.y0);
+    let q0 = f(origin);
+    // Images of the unit x and y directions.
+    let u = (f(Point::new(b.x1, b.y0)) - q0) / w;
+    let v = (f(Point::new(b.x0, b.y1)) - q0) / h;
+    if ![q0.x, q0.y, u.x, u.y, v.x, v.y].iter().all(|k| k.is_finite()) {
+        return None;
+    }
+    let a = Affine::translate(q0.to_vec2()) * Affine::new([u.x, u.y, v.x, v.y, 0.0, 0.0]) * Affine::translate(-origin.to_vec2());
+    // Five by five including the corners the fit came from, so a map that merely agrees at those
+    // three is rejected.
+    for i in 0..=4 {
+        for j in 0..=4 {
+            let p = Point::new(b.x0 + w * i as f64 / 4.0, b.y0 + h * j as f64 / 4.0);
+            let (want, got) = (f(p), a * p);
+            if !(want.x.is_finite() && want.y.is_finite()) || want.distance(got) > tol {
+                return None;
+            }
+        }
+    }
+    Some(a)
+}
+
+/// [`warp_node`] for a map that is affine: the art is transformed rather than flattened, so its
+/// curves survive.
+///
+/// Everything else matches [`warp_node`] deliberately, so curves are the only difference between
+/// the two routes: the same node kinds are kept and the rest dropped, `live` is cleared on every
+/// path, an empty path or a group left with no children is dropped, and strokes are scaled by
+/// `width_scale` at every level rather than by the transform's own factor.
+fn affine_node(n: &Node, a: Affine, width_scale: f64) -> Option<Node> {
+    let mut out = prepared(n, width_scale)?;
+    out.transform(a, false);
+    Some(out)
+}
+
+/// The part of [`affine_node`] that mirrors [`warp_node`]'s walk, before the single transform.
+fn prepared(n: &Node, width_scale: f64) -> Option<Node> {
+    let mut out = n.clone();
+    out.appearance.scale_strokes(width_scale);
+    match &mut out.kind {
+        NodeKind::Path { path, live, .. } => {
+            *live = None;
+            if path.is_empty() {
+                return None;
+            }
+        }
+        NodeKind::Group { children, .. } | NodeKind::Layer { children, .. } | NodeKind::Compound { children, .. } => {
+            let kids: Vec<Arc<Node>> = children.iter().filter_map(|c| prepared(c, width_scale)).map(Arc::new).collect();
+            if kids.is_empty() {
+                return None;
+            }
+            *children = kids;
+        }
+        _ => return None,
+    }
+    Some(out)
+}
+
 /// Bend `art` (already oriented, bounds `b`) along `t` using `along` and cross scale `cross`.
 fn bend(t: &Track, art: &Node, b: Rect, along: AlongMap, cross: f64) -> Option<Node> {
     let cy = b.center().y;
@@ -166,6 +239,10 @@ fn bend(t: &Track, art: &Node, b: Rect, along: AlongMap, cross: f64) -> Option<N
     let f = move |p: Point| t.map(along.at(p.x - x0), (p.y - cy) * cross);
     let scale = along.max_scale().max(cross.abs()).max(1e-6);
     let flat_tol = tolerance(b.height().max(b.width()) * scale) / scale;
+    // A straight run needs no bending: move the art and keep its curves.
+    if let Some(a) = affine_fit(&f, b, flat_tol.max(1e-9)) {
+        return affine_node(art, a, cross.abs());
+    }
     warp_node(art, &f, flat_tol, MAX_SEG / along.max_scale(), cross.abs())
 }
 
