@@ -9,6 +9,10 @@
 //!   ([`Profile`]), optionally with the fonts type uses embedded as `@font-face` subsets.
 //! * [`import`] / [`import_with_report`] parse SVG with `usvg` and convert its normalized tree into
 //!   document nodes with all transforms baked into the geometry.
+//! * What other software keeps on an object survives the round trip: its `data-*` attributes and
+//!   its attributes in other applications' XML namespaces (`plotter:pen="2"`) are kept with the
+//!   object ([`vectorcraft_doc::ObjectAttributes`]), so they are copied, saved and deleted with it,
+//!   and export writes them back.
 //! * [`css_rules`] writes the CSS web pages style objects with (the CSS Properties panel): shapes'
 //!   paints as backgrounds and borders, type as fonts, shadows as `box-shadow`, each property
 //!   written as SVG export writes it in its style sheets.
@@ -91,7 +95,9 @@
 #![forbid(unsafe_code)]
 
 mod css;
+mod entities;
 mod export;
+mod glyph;
 mod import;
 
 pub use css::{CssOptions, CssRule, CssSheet, CssUnits, css_rules};
@@ -373,7 +379,7 @@ pub struct Editing {
 /// The native document an SVG carries, if any, and whether the SVG was edited since.
 pub fn editing(svg: &str) -> Option<Editing> {
     // (An SVG nested too deep for the XML reader carries none: it isn't one of ours.)
-    if !svg.contains(EDITING_NS) || import::xml_too_deep(svg) {
+    if !svg.contains(EDITING_NS) || import::xml_too_deep(svg) || entities::expansion_too_large(svg) {
         return None;
     }
     let opts = usvg::roxmltree::ParsingOptions { allow_dtd: true, ..Default::default() };
@@ -534,7 +540,8 @@ pub fn import_with_report(svg: &str) -> Result<(Document, Vec<String>), SvgError
     import_with(svg, &ImportOptions::default())
 }
 
-pub use import::MAX_ELEMENT_DEPTH;
+pub use glyph::glyph_art;
+pub use import::{MAX_ELEMENT_DEPTH, MAX_FOREIGN, MAX_FOREIGN_VALUE};
 
 /// Import an SVG document reading the files it links to as `opts` says, also returning warnings.
 pub fn import_with(svg: &str, opts: &ImportOptions) -> Result<(Document, Vec<String>), SvgError> {

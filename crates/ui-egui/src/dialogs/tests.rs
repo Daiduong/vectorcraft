@@ -277,6 +277,25 @@ fn effect_dialog_applies_to_its_appearance_item() {
 }
 
 #[test]
+fn scribble_dialog_settings_presets_load_parameters() {
+    let mut app = app();
+    let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
+    app.run("select.all", json!({})).unwrap();
+    app.run("effect.dialog", json!({"effect": "stylize.scribble"})).unwrap();
+    let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
+    assert!(text.lines().any(|l| l == "Settings"), "{text}");
+    let tight = vectorcraft_effects::scribble_settings().iter().find(|p| p.id == "tight").unwrap();
+    app.ui.dialog.as_mut().unwrap().fields.insert("__scribbleSetting".into(), json!("tight"));
+    for (k, v) in tight.params.as_object().unwrap() {
+        app.ui.dialog.as_mut().unwrap().fields.insert(k.clone(), v.clone());
+    }
+    frame(&mut app, Default::default());
+    assert_eq!(app.ui.dialog.as_ref().unwrap().f64("spacing", 0.0), 2.0);
+    confirm(&mut app).unwrap();
+    assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].params["spacing"], json!(2.0));
+}
+
+#[test]
 fn scribble_dialog_shows_the_angle_as_stored_and_each_variation() {
     let mut app = app();
     let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap()["id"].as_u64().unwrap();
@@ -358,7 +377,7 @@ fn dialogs_are_as_tall_as_their_content() {
             let input = egui::RawInput { screen_rect: Some(screen), ..Default::default() };
             ctx.run_ui(input, |ui| show(app, ui.ctx())).textures_delta.clear();
         }
-        ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", kind)))).unwrap().height()
+        ctx.memory(|m| m.area_rect(egui::Id::unique(("dialog", kind)))).unwrap().height()
     };
     let tall = height(&mut app, "command", json!({"__command": "object.move", "a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8}));
     let prompt = height(&mut app, crate::unsaved::KIND, json!({"index": 0, "name": "Untitled-1", "then": "close"}));
@@ -403,7 +422,7 @@ fn dialogs_do_not_stretch_to_the_screen() {
             let input = egui::RawInput { screen_rect: Some(screen), ..Default::default() };
             ctx.run_ui(input, |ui| show(&mut app, ui.ctx())).textures_delta.clear();
         }
-        let h = ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", kind.as_str()))))?.height();
+        let h = ctx.memory(|m| m.area_rect(egui::Id::unique(("dialog", kind.as_str()))))?.height();
         Some((kind, h))
     };
     let mut checked = 0;
@@ -426,7 +445,7 @@ fn dialog_rect(app: &mut VectorcraftApp, w: f32) -> egui::Rect {
         let input = egui::RawInput { screen_rect: Some(screen), ..Default::default() };
         ctx.run_ui(input, |ui| show(app, ui.ctx())).textures_delta.clear();
     }
-    ctx.memory(|m| m.area_rect(egui::Id::new(("dialog", kind.as_str())))).unwrap()
+    ctx.memory(|m| m.area_rect(egui::Id::unique(("dialog", kind.as_str())))).unwrap()
 }
 
 #[test]
@@ -531,6 +550,8 @@ struct PluginIntField {
 }
 
 impl PluginIntField {
+    /// The dialog for a `seed` in `min..=max` showing `start`, drawn once to find the number,
+    /// where drags start (`pos`).
     fn new(min: i64, max: i64, start: i64) -> Self {
         let ctx = egui::Context::default();
         theme::install_fonts(&ctx);
@@ -544,6 +565,7 @@ impl PluginIntField {
             author: String::new(),
             params: vec![("seed".into(), vectorcraft_plugins::ParamSpec::Int { min, max, default: 0 }.into())],
             extensions: Vec::new(),
+            budget: Default::default(),
         };
         let mut f = PluginIntField { ctx, d: Dialog::new(plugin::KIND, json!({ "seed": start })), m, pos: egui::Pos2::ZERO };
         fn number_rect(shape: &egui::Shape, text: &str) -> Option<egui::Rect> {
@@ -927,11 +949,17 @@ fn the_transform_effect_dialog_has_its_controls_previews_them_and_shows_them_aga
         "Reflect Y",
         "Reference Point",
         "Random",
+        "Transform Objects",
+        "Transform Patterns",
+        "Scale Strokes & Effects",
         "Preview",
     ] {
         assert!(text.lines().any(|l| l == s), "{s} in {text}");
     }
     assert!(app.session.in_interaction(), "the preview runs");
+    // The options start at the catalog defaults (#885).
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!((d.bool("objects"), d.bool("patterns"), d.bool("strokes")), (true, false, false));
     let effect = |app: &VectorcraftApp| app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects[0].clone();
     // The reference point and Random update the preview.
     let d = app.ui.dialog.as_mut().unwrap();
@@ -943,6 +971,10 @@ fn the_transform_effect_dialog_has_its_controls_previews_them_and_shows_them_aga
     app.ui.dialog.as_mut().unwrap().fields.insert("random".into(), json!(true));
     frame(&mut app, Default::default());
     assert_eq!(effect(&app).params["random"], json!(true));
+    // So does Scale Strokes & Effects.
+    app.ui.dialog.as_mut().unwrap().fields.insert("strokes".into(), json!(true));
+    frame(&mut app, Default::default());
+    assert_eq!(effect(&app).params["strokes"], json!(true));
     confirm(&mut app).unwrap();
     assert!(!app.session.in_interaction());
     assert_eq!(app.session.doc().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().appearance.effects.len(), 1);
@@ -950,6 +982,7 @@ fn the_transform_effect_dialog_has_its_controls_previews_them_and_shows_them_aga
     app.run("effect.dialog", json!({"effect": "distort.transform", "index": 0})).unwrap();
     let d = app.ui.dialog.as_ref().unwrap();
     assert_eq!((d.f64("reference", 4.0), d.f64("copies", 0.0), d.f64("moveH", 0.0), d.bool("random")), (8.0, 3.0, 30.0, true));
+    assert_eq!((d.bool("objects"), d.bool("strokes")), (true, true));
     let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
     assert!(text.lines().any(|l| l == "Reference Point"), "{text}");
 }
@@ -1085,6 +1118,112 @@ fn new_artboard_options_give_the_new_artboard_its_background_color() {
         super::confirm(&mut app).unwrap();
         let ab = app.session.doc().unwrap().doc.artboards.last().cloned().unwrap();
         assert_eq!(ab.color.map(|c| c.to_hex()).as_deref(), want);
+    }
+}
+
+/// Artboard Options shows Show Center Mark and Show Cross Hairs, ticked as the artboard has them
+/// whether it opens from the Artboards panel or from a double-click with the Artboard tool. OK
+/// sets them in one undo step, and a new artboard's Artboard Options gives it the ones ticked.
+#[test]
+fn artboard_options_show_center_mark_and_cross_hairs() {
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    let mut app = app();
+    let marks = |app: &VectorcraftApp, i: usize| {
+        let a = &app.session.doc().unwrap().doc.artboards[i];
+        (a.show_center_mark, a.show_cross_hairs)
+    };
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
+    assert!(text.contains("Show Center Mark") && text.contains("Show Cross Hairs"), "{text}");
+    let d = app.ui.dialog.as_mut().unwrap();
+    assert!(!d.bool("showCenterMark") && !d.bool("showCrossHairs"));
+    d.fields.insert("showCenterMark".into(), json!(true));
+    let undo = app.session.doc().unwrap().history.undo.len();
+    super::confirm(&mut app).unwrap();
+    assert_eq!(marks(&app, 0), (true, false));
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1);
+    // Opened again, it shows them; unticking one clears it.
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let d = app.ui.dialog.as_mut().unwrap();
+    assert!(d.bool("showCenterMark"));
+    d.fields.insert("showCenterMark".into(), json!(false));
+    d.fields.insert("showCrossHairs".into(), json!(true));
+    super::confirm(&mut app).unwrap();
+    assert_eq!(marks(&app, 0), (false, true));
+    // A double-click with the Artboard tool on the artboard's empty space.
+    app.select_tool("artboard");
+    let view = app.view_info();
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+        crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, 100.0, 100.0), view);
+    }
+    let d = app.ui.dialog.clone().expect("Artboard Options opened");
+    assert_eq!((d.kind.as_str(), d.bool("showCenterMark"), d.bool("showCrossHairs")), ("artboardOptions", false, true));
+    cancel(&mut app);
+    // A new artboard takes the ones ticked, and none when none is.
+    for (ticked, want) in [(Some("showCenterMark"), (true, false)), (None, (false, false))] {
+        app.run("ui.newArtboard", json!({})).unwrap();
+        if let Some(k) = ticked {
+            app.ui.dialog.as_mut().unwrap().fields.insert(k.into(), json!(true));
+        }
+        super::confirm(&mut app).unwrap();
+        let last = app.session.doc().unwrap().doc.artboards.len() - 1;
+        assert_eq!(marks(&app, last), want);
+    }
+}
+
+/// Artboard Options shows Show Video Safe Areas and Video Ruler Pixel Aspect Ratio (one row of
+/// it), set as the artboard has them whether it opens from the Artboards panel or from a
+/// double-click with the Artboard tool. OK sets them in one undo step (a typed ratio is read as a
+/// number), an out-of-range ratio keeps the dialog open and changes nothing, and a new artboard's
+/// Artboard Options gives it the ones set.
+#[test]
+fn artboard_options_show_video_display_options() {
+    use vectorcraft_tools::{PointerEvent, PointerKind};
+    let mut app = app();
+    let video = |app: &VectorcraftApp, i: usize| {
+        let a = &app.session.doc().unwrap().doc.artboards[i];
+        (a.show_video_safe_areas, a.video_ruler_pixel_aspect_ratio)
+    };
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let text = crate::tests_labels::painted_text(&mut app, |app, ui| show(app, ui.ctx()));
+    assert!(text.contains("Show Video Safe Areas"), "{text}");
+    assert_eq!(text.matches("Video Ruler Pixel Aspect Ratio").count(), 1, "one row: {text}");
+    let d = app.ui.dialog.as_mut().unwrap();
+    assert_eq!((d.bool("showVideoSafeAreas"), d.f64("videoRulerPixelAspectRatio", 0.0)), (false, 1.0));
+    d.fields.insert("showVideoSafeAreas".into(), json!(true));
+    d.fields.insert("videoRulerPixelAspectRatio".into(), json!("0.9"));
+    let undo = app.session.doc().unwrap().history.undo.len();
+    super::confirm(&mut app).unwrap();
+    assert_eq!(video(&app, 0), (true, 0.9));
+    assert_eq!(app.session.doc().unwrap().history.undo.len(), undo + 1);
+    // Opened again, it shows them; a ratio out of range is refused.
+    crate::dialogs::artboard_options::open(&mut app).unwrap();
+    let d = app.ui.dialog.as_mut().unwrap();
+    assert_eq!((d.bool("showVideoSafeAreas"), d.f64("videoRulerPixelAspectRatio", 0.0)), (true, 0.9));
+    d.fields.insert("videoRulerPixelAspectRatio".into(), json!(20));
+    assert!(super::confirm(&mut app).is_err());
+    assert_eq!(video(&app, 0), (true, 0.9), "nothing changed");
+    cancel(&mut app);
+    // A double-click with the Artboard tool on the artboard's empty space.
+    app.select_tool("artboard");
+    let view = app.view_info();
+    for kind in [PointerKind::Down, PointerKind::Up, PointerKind::Down, PointerKind::Up, PointerKind::DoubleClick] {
+        crate::canvas::dispatch(&mut app, &PointerEvent::new(kind, 100.0, 100.0), view);
+    }
+    let d = app.ui.dialog.clone().expect("Artboard Options opened");
+    assert_eq!((d.bool("showVideoSafeAreas"), d.f64("videoRulerPixelAspectRatio", 0.0)), (true, 0.9));
+    cancel(&mut app);
+    // A new artboard takes the ones set, and the defaults otherwise.
+    for (set, want) in [(true, (true, 2.0)), (false, (false, 1.0))] {
+        app.run("ui.newArtboard", json!({})).unwrap();
+        if set {
+            let d = app.ui.dialog.as_mut().unwrap();
+            d.fields.insert("showVideoSafeAreas".into(), json!(true));
+            d.fields.insert("videoRulerPixelAspectRatio".into(), json!(2));
+        }
+        super::confirm(&mut app).unwrap();
+        let last = app.session.doc().unwrap().doc.artboards.len() - 1;
+        assert_eq!(video(&app, last), want);
     }
 }
 
@@ -1322,7 +1461,13 @@ fn dialog_sliders_report_the_numbers_their_fields_show() {
     app.run("tool.options", json!({"tool": "pencil"})).unwrap();
     set(&mut app, "fidelity", json!(2.5));
     let shown = tree(|ui| show(&mut app, ui.ctx()));
-    assert_eq!(slider_value(&shown, "Fidelity:"), v(2.5, (0.5, 20.0), "2.5pt"));
+    assert_eq!(slider_value(&shown, "Fidelity:"), v(2.5, (0.01, 20.0), "2.5pt"));
+    // The Smooth tool's rail starts at its own lowest Fidelity.
+    app.ui.dialog = None;
+    app.run("tool.options", json!({"tool": "smooth"})).unwrap();
+    set(&mut app, "fidelity", json!(0.25));
+    let shown = tree(|ui| show(&mut app, ui.ctx()));
+    assert_eq!(slider_value(&shown, "Fidelity:"), v(0.25, (0.05, 20.0), "0.25pt"));
     app.ui.dialog = None;
     app.run("paint.setFill", json!({"color": "#ff8000"})).unwrap();
     app.run("ui.colorPicker", json!({})).unwrap();
@@ -1778,7 +1923,10 @@ fn polar_grid_dialog_edits_skews_compound_and_fill() {
     assert!((widths[0] - 100.0).abs() < 1e-6 && (widths[1] - 93.75).abs() < 1e-6, "outward: {widths:?}");
     let tips: Vec<f64> = children[3..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[1].p.x).collect();
     assert!(tips.iter().all(|x| *x > 60.0), "right of the top divider: {tips:?}");
-    let saved = json!({"concentric": 3, "radial": 4, "concentricSkew": 100.0, "radialSkew": 500.0, "compound": true, "fill": true});
+    let saved = json!({
+        "concentric": 3, "radial": 4, "concentricSkew": 100.0, "radialSkew": 500.0, "compound": true, "fill": true,
+        "width": 100.0, "height": 100.0, "reference": 0,
+    });
     assert_eq!(app.session.tool_options_of("polarGrid"), saved);
 }
 

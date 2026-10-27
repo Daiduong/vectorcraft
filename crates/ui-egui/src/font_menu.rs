@@ -4,10 +4,11 @@
 //! or reached with ↑/↓ previews its font on the selected text (one live interaction, nothing in
 //! the history); a click or Enter applies it as one step, Escape or closing the menu puts the text
 //! back. The Glyphs panel and Find Font only pick a font ([`picked`]): nothing is previewed on the
-//! document. A star marks a favourite family, and the ★ filter lists only those. Preferences ›
-//! Type › Enable in-menu font previews and Font Preview Size turn the samples off or size the
-//! rows. Recently used families appear first, in the order they were last applied, within the
-//! same search and filters as the remaining families.
+//! document. A star marks a favourite family, and the ★ filter lists only those. The Font
+//! Technology filter's Variable lists only variable font families. Preferences › Type › Enable
+//! in-menu font previews and Font Preview Size turn the samples off or size the rows. Recently
+//! used families appear first, in the order they were last applied, within the same search and
+//! filters as the remaining families.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -99,6 +100,12 @@ fn script_label(i: usize) -> &'static str {
         3 => tl!("Thai"),
         _ => tl!("All Scripts"),
     }
+}
+
+/// The Font Technology filter's one choice: variable fonts. An adjective for fonts, not the
+/// Variables panel's noun (`変数`), hence its context.
+fn variable_label() -> &'static str {
+    crate::i18n::tr_ctx(crate::i18n::current(), "font-technology", "Variable")
 }
 
 /// Does a family of `traits` pass script filter `script` ([`SCRIPTS`])? Latin: neither Japanese
@@ -193,9 +200,10 @@ fn remap_highlight(before: &[Row], selected: Option<usize>, after: &[Row]) -> Op
     after.iter().position(|candidate| candidate == row)
 }
 
-/// What the rows were listed for: the query, the script, kind and favourites filters, Show Font
-/// Names in English, the expanded families, favourites, recent history and font list generation.
-type RowsKey = (String, usize, Option<FontClass>, bool, bool, Vec<String>, Vec<String>, Vec<String>, u64);
+/// What the rows were listed for: the query, the script, kind, font technology (variable only) and
+/// favourites filters, Show Font Names in English, the expanded families, favourites, recent
+/// history and font list generation.
+type RowsKey = (String, usize, Option<FontClass>, bool, bool, bool, Vec<String>, Vec<String>, Vec<String>, u64);
 
 /// The menu's state between frames.
 #[derive(Clone, Default)]
@@ -210,10 +218,11 @@ struct MenuState {
     /// The highlighted row and the query and filters it belongs to.
     highlight: Option<usize>,
     query: String,
-    /// The filters (kept from one opening to the next): script (0..[`SCRIPTS`]), kind, and
-    /// favourites only.
+    /// The filters (kept from one opening to the next): script (0..[`SCRIPTS`]), kind, font
+    /// technology (variable fonts only) and favourites only.
     script: usize,
     class: Option<FontClass>,
+    variable_only: bool,
     favorites_only: bool,
     /// Families whose styles are listed (lowercase).
     expanded: Vec<String>,
@@ -236,7 +245,7 @@ pub fn font_menu(
     sample: Option<&str>,
     look: MenuLook,
 ) -> Option<FontPick> {
-    let state_id = ui.id().with(&id).with("font-menu");
+    let state_id = ui.scope_id().with(&id).with("font-menu");
     let mut st: MenuState = ui.data(|d| d.get_temp(state_id)).unwrap_or_default();
     let mut drawn = false;
     let picked = widgets::combo(ui, &id, current, width, true, |ui| {
@@ -287,7 +296,7 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
         ui.memory_mut(|m| m.request_focus(field.with("edit")));
     }
     let query = widgets::search_field(ui, field, tl!("Search")).to_lowercase();
-    // The filters: script, then kind.
+    // The filters: script, then kind, then font technology.
     let mut refilter = false;
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 2.0);
@@ -315,6 +324,14 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
             }
         }
     });
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing = vec2(4.0, 2.0);
+        ui.label(egui::RichText::new(tl!("Font Technology")).size(11.0).color(t.text_dim));
+        if ui.selectable_label(st.variable_only, egui::RichText::new(variable_label()).size(11.0)).clicked() {
+            st.variable_only = !st.variable_only;
+            refilter = true;
+        }
+    });
     let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
     let db = vectorcraft_text::FontDb::global();
     // The current family by its own name (a document may name it in Japanese: ヒラギノ角ゴシック),
@@ -327,6 +344,7 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
         query.clone(),
         st.script,
         st.class,
+        st.variable_only,
         st.favorites_only,
         look.english_names,
         st.expanded.clone(),
@@ -343,11 +361,11 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
             if st.favorites_only && !favorite(f) {
                 return false;
             }
-            if st.script == 0 && st.class.is_none() {
+            if st.script == 0 && st.class.is_none() && !st.variable_only {
                 return true;
             }
             let traits = db.family_traits(f);
-            script_matches(st.script, traits) && st.class.is_none_or(|c| c == traits.class)
+            script_matches(st.script, traits) && st.class.is_none_or(|c| c == traits.class) && (!st.variable_only || traits.variable)
         };
         let families: Vec<_> = db.menu_family_list().iter().filter(|f| wanted(f)).cloned().collect();
         let rows = grouped_rows(&families, look.recent, &st.expanded, |f| db.styles(f));
@@ -504,7 +522,7 @@ fn list(ui: &mut Ui, state_id: egui::Id, st: &mut MenuState, current: &str, samp
             }
         }
     });
-    st.scrolled = shown.state.offset.y;
+    st.scrolled = shown.state.clamped_offset().y;
     if let Some(f) = toggled {
         if st.expanded.contains(&f) {
             st.expanded.retain(|e| *e != f);
@@ -703,7 +721,7 @@ const PREVIEWING: &str = "font-previewing";
 
 /// Where the open font menu was drawn last: (pass, its popup's layer).
 fn open_id() -> egui::Id {
-    egui::Id::new("font-menu-open")
+    egui::Id::unique("font-menu-open")
 }
 
 /// Undo a preview whose menu is gone (its panel wasn't drawn: the text was deselected, the panel
@@ -831,232 +849,4 @@ pub(crate) fn sample_text(app: &VectorcraftApp) -> Option<String> {
 }
 
 #[cfg(test)]
-mod tests {
-
-    /// The script filter: Thai lists families with Thai; Latin, those with neither Thai nor
-    /// Japanese.
-    #[test]
-    fn the_thai_filter_lists_fonts_with_thai() {
-        use vectorcraft_text::FontTraits;
-        let (thai, japanese, latin) =
-            (FontTraits { thai: true, ..Default::default() }, FontTraits { japanese: true, ..Default::default() }, FontTraits::default());
-        let passing = |t: FontTraits| (0..super::SCRIPTS).filter(|s| super::script_matches(*s, t)).collect::<Vec<_>>();
-        assert_eq!(passing(thai), [0, 3]);
-        assert_eq!(passing(japanese), [0, 1]);
-        assert_eq!(passing(latin), [0, 2]);
-        assert_eq!(super::script_label(3), "Thai");
-        let zh = crate::i18n::Lang::from_code("zh-hans").unwrap();
-        crate::i18n::set_current(zh);
-        assert_eq!(super::script_label(1), "汉字");
-        crate::i18n::set_current(crate::i18n::Lang::EN);
-        assert_eq!(super::script_label(1), "Japanese");
-    }
-
-    /// #2277: the list's scroll bar has a column of its own, so the stars at the rows' right ends
-    /// stay clear of it.
-    #[test]
-    fn the_scroll_bar_leaves_the_stars_clear() {
-        // Every family starred, so each row draws its star.
-        let all = vectorcraft_text::FontDb::global().families();
-        let families = all.len();
-        let ctx = egui::Context::default();
-        let area = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(300.0, 160.0));
-        let mut st = super::MenuState::default();
-        let look = super::MenuLook { samples: false, favorites: &all, ..Default::default() };
-        let mut stars = vec![];
-        for _ in 0..3 {
-            let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(area), ..Default::default() }, |ui| {
-                let mut child = ui.new_child(egui::UiBuilder::new().max_rect(area));
-                super::list(&mut child, egui::Id::new("fonts"), &mut st, "", None, look);
-            });
-            out.textures_delta.clear();
-            stars = out
-                .shapes
-                .iter()
-                .filter_map(|c| match &c.shape {
-                    // The rows' stars, not the ★ filter button at the top left.
-                    egui::Shape::Text(t) if t.galley.text() == "★" && t.pos.x > area.center().x => Some(t.visual_bounding_rect().right()),
-                    _ => None,
-                })
-                .collect();
-        }
-        assert!(!stars.is_empty() || families == 0, "{families} families, no row stars drawn");
-        // The rows don't fill the list without enough families to scroll, and then there is no bar.
-        if families as f32 * look.row > area.height() {
-            let bar = super::widgets::list_scroll_style();
-            let column = bar.bar_width + bar.bar_inner_margin + bar.bar_outer_margin;
-            for right in stars {
-                assert!(right <= area.right() - column + 0.5, "a star at {right} runs under the scroll bar");
-            }
-        }
-    }
-
-    use super::{Row, remap_highlight};
-
-    fn family(name: &str) -> Row {
-        Row::Family(name.to_string())
-    }
-
-    #[test]
-    fn recent_fonts_are_first_available_unique_and_expandable() {
-        let names: Vec<_> = ["Alpha", "Bravo", "Charlie"].map(str::to_string).into();
-        let recent: Vec<_> = ["Charlie", "Missing", "BRAVO", "charlie"].map(str::to_string).into();
-        let rows = super::grouped_rows(&names, &recent, &["bravo".into()], |_| vec!["Bold".into()]);
-        assert_eq!(
-            rows,
-            [
-                Row::Heading("Recent Fonts"),
-                family("Charlie"),
-                family("Bravo"),
-                Row::Style("Bravo".into(), "Bold".into()),
-                Row::Heading("Fonts"),
-                family("Alpha")
-            ]
-        );
-        // A filter removing a recent family also removes it from the recent section.
-        let filtered = super::grouped_rows(&names[..1], &recent, &[], |_| vec![]);
-        assert_eq!(filtered, [family("Alpha")]);
-        assert!(super::grouped_rows(&[], &recent, &[], |_| vec![]).is_empty());
-    }
-
-    #[test]
-    fn recent_section_rebuilds_and_arrows_skip_its_headings() {
-        let names = vectorcraft_text::FontDb::global().menu_family_list();
-        if names.len() < 3 {
-            return;
-        }
-        let recent = vec![names[2].clone(), names[1].clone()];
-        let ctx = egui::Context::default();
-        let mut st = super::MenuState::default();
-        let mut frame = |events, recent: &[String]| {
-            let mut picked = None;
-            let input = egui::RawInput {
-                events,
-                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0))),
-                ..Default::default()
-            };
-            let mut out = ctx.run_ui(input, |ui| {
-                picked = super::list(
-                    ui,
-                    egui::Id::new("recent-test"),
-                    &mut st,
-                    &names[2],
-                    None,
-                    super::MenuLook { samples: false, recent, ..Default::default() },
-                );
-            });
-            out.textures_delta.clear();
-            (picked, st.rows.to_vec())
-        };
-        for _ in 0..3 {
-            frame(vec![], &recent);
-        }
-        let key = |key| {
-            [true, false].map(|pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: Default::default() }).to_vec()
-        };
-        assert_eq!(frame(key(egui::Key::ArrowDown), &recent).0, Some(super::FontPick::Preview(names[1].clone(), None)));
-        assert_eq!(frame(key(egui::Key::ArrowDown), &recent).0, Some(super::FontPick::Preview(names[0].clone(), None)), "skip Fonts heading");
-        assert_eq!(frame(key(egui::Key::ArrowUp), &recent).0, Some(super::FontPick::Preview(names[1].clone(), None)));
-        // Updating recent history while the menu is open must not retarget the highlight.
-        let updated = vec![names[1].clone()];
-        let (_, rows) = frame(vec![], &updated);
-        assert_eq!(rows[1], family(&names[1]));
-        assert_eq!(frame(key(egui::Key::Enter), &updated).0, Some(super::FontPick::Chosen(names[1].clone(), None)));
-    }
-
-    #[test]
-    fn recent_fonts_obey_search_and_favorite_filters() {
-        let names = vectorcraft_text::FontDb::global().menu_family_list();
-        if names.len() < 3 {
-            return;
-        }
-        let recent = vec![names[1].clone(), names[0].clone()];
-        let favorites = vec![names[0].clone()];
-        let ctx = egui::Context::default();
-        let mut st = super::MenuState { favorites_only: true, ..Default::default() };
-        let mut frame = |events| {
-            let mut pick = None;
-            let mut out = ctx.run_ui(
-                egui::RawInput {
-                    events,
-                    screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 800.0))),
-                    ..Default::default()
-                },
-                |ui| {
-                    pick = super::list(
-                        ui,
-                        egui::Id::new("filtered-recent"),
-                        &mut st,
-                        &names[2],
-                        None,
-                        super::MenuLook { samples: false, recent: &recent, favorites: &favorites, ..Default::default() },
-                    );
-                },
-            );
-            out.textures_delta.clear();
-            (pick, st.rows.to_vec())
-        };
-        for _ in 0..3 {
-            frame(vec![]);
-        }
-        assert_eq!(frame(vec![]).1, [Row::Heading("Recent Fonts"), family(&names[0])]);
-        let key = [true, false]
-            .map(|pressed| egui::Event::Key { key: egui::Key::ArrowDown, physical_key: None, pressed, repeat: false, modifiers: Default::default() })
-            .to_vec();
-        assert_eq!(frame(key).0, Some(super::FontPick::Preview(names[0].clone(), None)), "skip Recent Fonts heading");
-        let (pick, rows) = frame(vec![egui::Event::Text("NoSuchFontFor3515".into())]);
-        assert!(rows.is_empty(), "search must filter the recent section too: {rows:?}");
-        assert_eq!(pick, Some(super::FontPick::EndPreview));
-    }
-
-    #[test]
-    fn opening_on_another_font_keeps_the_recent_section_visible() {
-        let names = vectorcraft_text::FontDb::global().menu_family_list();
-        let Some(current) = names.last() else { return };
-        let recent = vec![names[0].clone()];
-        let ctx = egui::Context::default();
-        let mut st = super::MenuState::default();
-        let mut visible = false;
-        for _ in 0..3 {
-            let mut out = ctx.run_ui(
-                egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600.0, 400.0))), ..Default::default() },
-                |ui| {
-                    super::list(
-                        ui,
-                        egui::Id::new("recent-at-top"),
-                        &mut st,
-                        current,
-                        None,
-                        super::MenuLook { samples: false, recent: &recent, ..Default::default() },
-                    );
-                },
-            );
-            out.textures_delta.clear();
-            visible = out.shapes.iter().any(|s| matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == "Recent Fonts"));
-        }
-        assert!(visible, "opening the picker must show its recent section");
-    }
-
-    #[test]
-    fn keeps_the_same_family_when_other_rows_are_inserted_or_removed() {
-        let before = [family("Alpha"), family("Bravo"), family("Charlie")];
-        assert_eq!(remap_highlight(&before, Some(2), &[family("Bravo"), family("Charlie")]), Some(1));
-        assert_eq!(remap_highlight(&before, Some(2), &[family("Alpha"), family("New"), family("Bravo"), family("Charlie")]), Some(3));
-    }
-
-    #[test]
-    fn clears_the_highlight_when_its_family_is_filtered_out() {
-        let before = [family("Alpha"), family("Bravo"), family("Charlie")];
-        assert_eq!(remap_highlight(&before, Some(1), &[family("Alpha"), family("Charlie")]), None);
-        assert_eq!(remap_highlight(&before, Some(10), &before), None);
-        assert_eq!(remap_highlight(&before, None, &before), None);
-    }
-
-    #[test]
-    fn expanded_style_rows_do_not_retarget_the_highlight() {
-        let before = [family("Alpha"), family("Bravo")];
-        let after = [family("Alpha"), Row::Style("Alpha".into(), "Bold".into()), family("Bravo")];
-        assert_eq!(remap_highlight(&before, Some(1), &after), Some(2));
-        assert_eq!(remap_highlight(&after, Some(1), &before), None);
-    }
-}
+mod tests;

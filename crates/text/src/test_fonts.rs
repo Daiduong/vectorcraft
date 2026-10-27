@@ -408,6 +408,29 @@ pub fn twin_font(newer: bool) -> Option<Vec<u8>> {
     Some(builder.build())
 }
 
+/// The family of [`numbered_font`]: styles numbered W3 and W6, and no Regular.
+pub const NUMBERED_FAMILY: &str = "Numtest Mincho";
+
+/// A face of family [`NUMBERED_FAMILY`] in `style` (`W3` or `W6`; the bundled Source Sans 3
+/// Regular renamed), as families whose styles are numbered have, with no Regular among them.
+/// `None` when it can't be built.
+pub fn numbered_font(style: &str) -> Option<Vec<u8>> {
+    const FACE: &[u8] = include_bytes!("../../../assets/fonts/SourceSans3-Regular.ttf");
+    let font = skrifa::FontRef::new(FACE).ok()?;
+    let full = format!("{NUMBERED_FAMILY} {style}");
+    let postscript = format!("NumtestMincho-{style}");
+    let name = name_table(&[(1, NUMBERED_FAMILY), (2, style), (4, &full), (5, "Version 1.000"), (6, &postscript)])?;
+    let mut builder = FontBuilder::new();
+    builder.add_raw(Tag::new(b"name"), name);
+    for r in font.table_directory.table_records() {
+        let tag = Tag::new(&r.tag().to_be_bytes());
+        if !builder.contains(tag) {
+            builder.add_raw(tag, font.table_data(r.tag())?.as_bytes());
+        }
+    }
+    Some(builder.build())
+}
+
 /// The character whose glyph [`colour_bitmap_font`] draws as a colour bitmap.
 pub const COLOUR_CHAR: char = 'E';
 
@@ -658,16 +681,88 @@ pub fn colr_font(v1: bool) -> Option<Vec<u8>> {
 
 /// The bundled Source Sans 3 Regular as `family` with `colr` and [`colr_font`]'s palette.
 pub fn colr_font_with(family: &str, colr: &write_fonts::tables::colr::Colr) -> Option<Vec<u8>> {
-    use write_fonts::tables::cpal::{ColorRecord, Cpal};
-    let font = skrifa::FontRef::new(SOURCE_SANS).ok()?;
+    with_colr(SOURCE_SANS, family_names(family, &[])?, colr)
+}
+
+/// The family of [`colr_variable_font`].
+pub const COLR_VARIABLE_FAMILY: &str = "Colrtest Variable";
+
+/// [`variable_font`] as family [`COLR_VARIABLE_FAMILY`], with a `COLR` (v0) table in which
+/// [`COLOUR_CHAR`] is the outline of `l` (one of [`VARIABLE_CHARS`]) in red, so its layer widens
+/// with the weight. `None` when it can't be built.
+pub fn colr_variable_font() -> Option<Vec<u8>> {
+    use write_fonts::tables::colr::{BaseGlyph, Colr, Layer};
+    use write_fonts::types::GlyphId16;
+    let [base, l] = source_sans_gids([COLOUR_CHAR, 'l'])?;
+    let colr = Colr::new(1, Some(vec![BaseGlyph::new(GlyphId16::new(base), 0, 1)]), Some(vec![Layer::new(GlyphId16::new(l), 0)]), 1);
+    let axis_names = [(256, "Weight"), (257, "Normal"), (258, "SemiBold"), (259, "Bold")];
+    with_colr(&variable_font()?, family_names(COLR_VARIABLE_FAMILY, &axis_names)?, &colr)
+}
+
+/// A `name` table for Regular of `family`, with `more` records.
+fn family_names(family: &str, more: &[(u16, &str)]) -> Option<Vec<u8>> {
     let ps = family.replace(' ', "");
-    let name = name_table(&[(1, family), (2, "Regular"), (4, &format!("{family} Regular")), (6, &format!("{ps}-Regular"))])?;
+    let (full, postscript) = (format!("{family} Regular"), format!("{ps}-Regular"));
+    let mut records = vec![(1, family), (2, "Regular"), (4, full.as_str()), (6, postscript.as_str())];
+    records.extend_from_slice(more);
+    name_table(&records)
+}
+
+/// Font `base` with the `name` table `name`, `colr` and [`colr_font`]'s palette.
+fn with_colr(base: &[u8], name: Vec<u8>, colr: &write_fonts::tables::colr::Colr) -> Option<Vec<u8>> {
+    use write_fonts::tables::cpal::{ColorRecord, Cpal};
+    let font = skrifa::FontRef::new(base).ok()?;
     let records = [COLR_RED, COLR_BLUE, COLR_GREEN].map(|[r, g, b, a]| ColorRecord::new(b, g, r, a)).to_vec();
     let cpal = Cpal::new(3, 1, 3, Some(records), vec![0]);
     let mut builder = FontBuilder::new();
     builder.add_raw(Tag::new(b"name"), name);
     builder.add_table(colr).ok()?;
     builder.add_table(&cpal).ok()?;
+    for r in font.table_directory.table_records() {
+        let tag = Tag::new(&r.tag().to_be_bytes());
+        if !builder.contains(tag) {
+            builder.add_raw(tag, font.table_data(r.tag())?.as_bytes());
+        }
+    }
+    Some(builder.build())
+}
+
+/// The character whose glyph [`svg_font`]'s first document draws.
+pub const SVG_CHAR: char = 'E';
+
+/// The glyph id of `ch` in the bundled Source Sans 3 (and the fonts made from it).
+pub fn source_sans_gid(ch: char) -> Option<u16> {
+    source_sans_gids([ch]).map(|[g]| g)
+}
+
+/// The bundled Source Sans 3 Regular as `family` with an `SVG ` table written from the OpenType
+/// specification: `documents` are (first glyph, last glyph, SVG document), in glyph order. Its
+/// outlines stay. `None` when it can't be built.
+pub fn svg_font(family: &str, documents: &[(u16, u16, &str)]) -> Option<Vec<u8>> {
+    let font = skrifa::FontRef::new(SOURCE_SANS).ok()?;
+    let ps = family.replace(' ', "");
+    let name = name_table(&[(1, family), (2, "Regular"), (4, &format!("{family} Regular")), (6, &format!("{ps}-Regular"))])?;
+    // The header (version, the document list's offset, reserved), then the document list: its
+    // records (first and last glyph, the document's offset from the list and length), then the
+    // documents.
+    let records = documents.len();
+    let mut list = (u16::try_from(records).ok()?).to_be_bytes().to_vec();
+    let mut offset = 2 + 12 * records;
+    for (first, last, doc) in documents {
+        list.extend(first.to_be_bytes());
+        list.extend(last.to_be_bytes());
+        list.extend((u32::try_from(offset).ok()?).to_be_bytes());
+        list.extend((u32::try_from(doc.len()).ok()?).to_be_bytes());
+        offset += doc.len();
+    }
+    for (_, _, doc) in documents {
+        list.extend(doc.as_bytes());
+    }
+    let mut svg = vec![0, 0, 0, 0, 0, 10, 0, 0, 0, 0];
+    svg.extend(list);
+    let mut builder = FontBuilder::new();
+    builder.add_raw(Tag::new(b"name"), name);
+    builder.add_raw(Tag::new(b"SVG "), svg);
     for r in font.table_directory.table_records() {
         let tag = Tag::new(&r.tag().to_be_bytes());
         if !builder.contains(tag) {

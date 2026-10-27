@@ -22,6 +22,10 @@ use crate::fontdb::FlipPen;
 
 /// The most nodes a colour glyph's tree may have: past it, a font's glyph draws its outline.
 const MAX_COLR_NODES: usize = 4096;
+
+/// The most path elements the clips and fills of a colour glyph's tree may hold in all: layers
+/// that repeat one large outline each hold a copy of it.
+const MAX_COLR_POINTS: usize = 1 << 20;
 /// The deepest the groups of a colour glyph may nest.
 const MAX_COLR_DEPTH: usize = 64;
 /// The pixels per em an image of a colour glyph is drawn at.
@@ -46,6 +50,11 @@ pub(crate) enum ColourContent {
 /// Does `font` have COLR colour glyphs?
 pub(crate) fn has_colour_layers(font: &skrifa::FontRef<'_>) -> bool {
     font.colr().is_ok()
+}
+
+/// Does glyph `gid` of `font` have COLR layers?
+pub(crate) fn has_colour_glyph(font: &skrifa::FontRef<'_>, gid: u32) -> bool {
+    ColorGlyphCollection::new(font).get(GlyphId::new(gid)).is_some()
 }
 
 /// Glyph `gid`'s colour content in `font` at `location`, palette 0's colours and `foreground` for
@@ -129,6 +138,8 @@ struct Tree<'a> {
     transforms: Vec<Affine>,
     groups: Vec<Open>,
     nodes: usize,
+    /// The path elements of the clips and fills so far.
+    points: usize,
     /// What VectorCraft has no form for, the first one met: the glyph becomes an image.
     unsupported: Option<&'static str>,
     /// The graph is past [`MAX_COLR_NODES`] or [`MAX_COLR_DEPTH`].
@@ -150,6 +161,7 @@ impl<'a> Tree<'a> {
             transforms: vec![FLIP],
             groups: vec![root],
             nodes: 0,
+            points: 0,
             unsupported: None,
             too_large: false,
             painted: None,
@@ -167,6 +179,13 @@ impl<'a> Tree<'a> {
         if let Some(g) = self.groups.last_mut().filter(|_| !self.too_large) {
             g.children.push(Arc::new(node));
         }
+    }
+
+    /// Count `path` against [`MAX_COLR_POINTS`]: whether it may be kept.
+    fn charge(&mut self, path: &BezPath) -> bool {
+        self.points = self.points.saturating_add(path.elements().len());
+        self.too_large |= self.points > MAX_COLR_POINTS;
+        !self.too_large
     }
 
     fn open(&mut self, group: Open) {
@@ -304,6 +323,9 @@ impl<'a> Tree<'a> {
 
     /// `path` (in the tree's space) filled with `brush` (in the current transform's).
     fn fill_path(&mut self, path: &BezPath, brush: &Brush<'_>) {
+        if !self.charge(path) {
+            return;
+        }
         let b = path.bounding_box();
         self.painted = Some(self.painted.map_or(b, |p| p.union(b)));
         let Some((paint, opacity)) = self.paint(brush) else { return };
@@ -339,6 +361,7 @@ impl ColorPainter for Tree<'_> {
     fn push_clip_glyph(&mut self, glyph_id: GlyphId) {
         let mut clip = outline(self.font, self.location, glyph_id);
         clip.apply_affine(self.transform());
+        self.charge(&clip);
         self.open(Open { clip: Some(clip), blend: None, children: vec![], flooded: false });
     }
 

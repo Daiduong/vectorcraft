@@ -4,6 +4,9 @@ use vectorcraft_geom::{Affine, PathData, Point, Rect, Shape, SubPath, shapes};
 
 use super::*;
 
+mod scale;
+mod transformfx;
+
 fn fx(id: &str, params: Value) -> Effect {
     Effect { id: id.into(), params, visible: true }
 }
@@ -262,6 +265,7 @@ fn stacked_transform_copies_stay_within_the_image_budget() {
                 xf: Affine::translate((10.0, 0.0)),
                 link: None,
                 placement: Default::default(),
+                pixels: None,
             })),
         )
     };
@@ -284,7 +288,7 @@ fn stacked_transform_copies_stay_within_the_image_budget() {
     assert_eq!(count(&art), 25);
     let mut g = Node::group(id, vec![Arc::new(image())]);
     g.appearance.effects.push(fx("distort.transform", json!({"moveH": 70, "copies": 1000})));
-    assert_eq!(count(&evaluate_container(&g).unwrap()), 1001);
+    assert_eq!(count(&evaluate_container(None, &g).unwrap()), 1001);
 }
 
 /// What `effects` make of `path` within `budget`.
@@ -458,11 +462,12 @@ fn transform_on_a_group_moves_and_copies_its_images() {
             xf: Affine::translate((10.0, 0.0)),
             link: None,
             placement: Default::default(),
+            pixels: None,
         })),
     );
     let mut g = Node::group(id, vec![Arc::new(sq), Arc::new(image)]);
     g.appearance.effects.push(fx("distort.transform", json!({"moveH": 70, "copies": 2})));
-    let art = evaluate_container(&g).unwrap();
+    let art = evaluate_container(None, &g).unwrap();
     let mut xs = vec![];
     image_xs(&art, &mut xs);
     xs.sort_by(f64::total_cmp);
@@ -479,11 +484,12 @@ fn transform_on_a_group_moves_and_copies_its_images() {
                 xf: Affine::translate((10.0, 0.0)),
                 link: None,
                 placement: Default::default(),
+                pixels: None,
             })),
         ))],
     );
     g.appearance.effects.push(fx("distort.transform", json!({"scaleH": 50, "scaleV": 50, "reference": 8})));
-    let art = evaluate_container(&g).unwrap();
+    let art = evaluate_container(None, &g).unwrap();
     let mut xs = vec![];
     image_xs(&art, &mut xs);
     // The bounds are the image itself, so the bottom-right reference is its own: it halves in place.
@@ -508,11 +514,11 @@ fn transform_on_a_group_moves_and_copies_its_symbol_instances() {
     };
     let mut g = Node::group(id, vec![Arc::new(Node::path(id, square(), Appearance::default())), Arc::new(instance())]);
     g.appearance.effects.push(fx("distort.transform", json!({"moveH": 70, "copies": 2})));
-    assert_eq!(xs(&evaluate_container(&g).unwrap()), [5.0, 75.0, 145.0], "the instance and its two copies, 70 pt apart");
+    assert_eq!(xs(&evaluate_container(None, &g).unwrap()), [5.0, 75.0, 145.0], "the instance and its two copies, 70 pt apart");
     // Without copies the instance itself takes the transform, as a path does.
     let mut g = Node::group(id, vec![Arc::new(instance())]);
     g.appearance.effects.push(fx("distort.transform", json!({"moveH": 70})));
-    assert_eq!(xs(&evaluate_container(&g).unwrap()), [75.0]);
+    assert_eq!(xs(&evaluate_container(None, &g).unwrap()), [75.0]);
 }
 
 /// Images and symbol instances share the copy budget: copies of one leave less room for the other.
@@ -531,6 +537,7 @@ fn images_and_symbol_instances_share_the_copy_budget() {
             xf: Affine::translate((10.0, 0.0)),
             link: None,
             placement: Default::default(),
+            pixels: None,
         })),
     );
     let instance = Node::new(id, NodeKind::SymbolInstance { symbol: "s".into(), xf: Affine::IDENTITY });
@@ -560,13 +567,14 @@ fn transform_copies_of_images_stop_at_the_reach_limit() {
             xf: Affine::translate((10.0, 0.0)),
             link: None,
             placement: Default::default(),
+            pixels: None,
         })),
     );
     let mut g = Node::group(id, vec![Arc::new(image)]);
     // The largest move: every copy is 1e7 pt further right, so the 100th would end past 1e9.
     g.appearance.effects.push(fx("distort.transform", json!({"moveH": 1.0e7, "copies": 1000})));
     let mut xs = vec![];
-    image_xs(&evaluate_container(&g).unwrap(), &mut xs);
+    image_xs(&evaluate_container(None, &g).unwrap(), &mut xs);
     assert_eq!(xs.len(), 100, "the image and the 99 copies that stay within reach");
     assert!(xs.iter().all(|x| x + 40.0 <= 1.0e9));
 }
@@ -918,6 +926,17 @@ fn scribble_reads_its_earlier_single_variation() {
 }
 
 #[test]
+fn scribble_settings_presets_are_distinct_and_recognized() {
+    let presets = crate::scribble_settings();
+    assert_eq!(presets.len(), 11);
+    assert_eq!(presets[0].id, "default");
+    assert_eq!(crate::scribble_setting_id(&presets[0].params), Some("default"));
+    assert_eq!(crate::scribble_setting_id(&presets[9].params), Some("tight"));
+    let custom = json!({"angle": 30.0, "overlap": 0.0, "overlapVariation": 0.5, "strokeWidth": 3.0, "curviness": 5.0, "curvinessVariation": 0.0, "spacing": 4.0, "spacingVariation": 0.5});
+    assert_eq!(crate::scribble_setting_id(&custom), None);
+}
+
+#[test]
 fn scribble_angle_is_stored_above_minus_180_and_up_to_180() {
     for (given, stored) in [(270.0, -90.0), (-180.0, 180.0), (180.0, 180.0), (540.0, 180.0), (-270.0, 90.0), (-200.0, 160.0)] {
         assert_eq!(new_effect("stylize.scribble", &json!({"angle": given})).unwrap().params["angle"].as_f64(), Some(stored), "{given}");
@@ -1060,4 +1079,44 @@ fn bench_catalog_lookup() {
         n += crate::merged_params("stylize.dropShadow", &serde_json::Value::Null).as_object().unwrap().len();
     }
     eprintln!("10k lookups: {:?} ({n})", t.elapsed());
+}
+
+#[test]
+fn a_repeat_of_a_symbol_whose_art_is_a_repeat_shares_the_instance_budget() {
+    use std::sync::Arc;
+    use vectorcraft_doc::{Document, NodeId, RepeatKind, RepeatSpec, Symbol};
+    let unit = || {
+        Arc::new(Node::path(
+            NodeId(0),
+            PathData::single(SubPath::polyline(&[Point::new(0.0, 0.0), Point::new(1.0, 0.0), Point::new(1.0, 1.0)], true)),
+            Appearance::default(),
+        ))
+    };
+    let grid = |source: Arc<Node>, n: u32| {
+        let mut g = RepeatSpec::grid(vec![source], 0.0, 0.0);
+        if let RepeatKind::Grid { rows, cols, .. } = &mut g.kind {
+            *rows = n;
+            *cols = n;
+        }
+        g
+    };
+    let repeat = |r: RepeatSpec| Arc::new(Node::new(NodeId(0), NodeKind::Repeat(r)));
+    let instance = |name: &str| Arc::new(Node::new(NodeId(0), NodeKind::SymbolInstance { symbol: name.into(), xf: Affine::IDENTITY }));
+    let mut d = Document::new(100.0, 100.0);
+    // A 500 × 500 grid as a symbol's art, directly and inside a group; a symbol holding itself.
+    d.symbols.push(Symbol { name: "Grid".into(), art: repeat(grid(unit(), 500)) });
+    d.symbols.push(Symbol { name: "Grouped".into(), art: Arc::new(Node::group(NodeId(0), vec![repeat(grid(unit(), 500))])) });
+    d.symbols.push(Symbol { name: "Loop".into(), art: Arc::new(Node::group(NodeId(0), vec![unit(), instance("Loop")])) });
+    d.symbols.push(Symbol { name: "Small".into(), art: repeat(grid(unit(), 3)) });
+    // A 3 × 3 grid of an instance of each: each copy draws 250,000 instances, so one copy fits.
+    for name in ["Grid", "Grouped"] {
+        let outer = Node::new(NodeId(0), NodeKind::Repeat(grid(instance(name), 3)));
+        let kept = expand_live(Some(&d), &outer).len();
+        assert!(kept <= 1, "{name}: {kept} copies of 250,000 instances");
+    }
+    // A symbol holding itself counts no Repeats, and small nests keep every instance.
+    let looped = Node::new(NodeId(0), NodeKind::Repeat(grid(instance("Loop"), 3)));
+    assert_eq!(expand_live(Some(&d), &looped).len(), 9);
+    let small = Node::new(NodeId(0), NodeKind::Repeat(RepeatSpec::mirror(vec![instance("Small")], 90.0, 5.0)));
+    assert_eq!(expand_live(Some(&d), &small).len(), 2);
 }
