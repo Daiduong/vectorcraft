@@ -6029,6 +6029,7 @@ dependencies = [
 name = "vectorcraft-engine"
 version = "0.17.0"
 dependencies = [
+ "chrono",
  "craft-docpath",
  "crc32fast",
  "flate2",
