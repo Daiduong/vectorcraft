@@ -11,7 +11,10 @@
 //! - Save / Export trigger a browser download;
 //! - dropped files are read asynchronously by `web::WebShell` and delivered through the inbox;
 //! - pen and finger input is read from Pointer Events by `pencil` (Apple Pencil pressure and
-//!   hover, palm rejection, fingers navigate once a pen has been seen).
+//!   hover, palm rejection, fingers navigate once a pen has been seen, the pen's eraser end
+//!   selects the Eraser tool);
+//! - a Cmd or Ctrl chord the keymap binds runs its command, not the browser's own action as well
+//!   (`Cmd+=` zooms the canvas, not the page; `Cmd+Z` undoes in the document) (`keys`).
 //!
 //! With `?host=parent` (inside an `<iframe>`), a same-origin parent page (or the parent on the
 //! origin `?host_origin=` names) opens documents and receives saves instead of downloads (`host.rs`).
@@ -25,6 +28,8 @@ mod api;
 mod bridge;
 #[cfg(target_arch = "wasm32")]
 mod fonts;
+#[cfg(any(target_arch = "wasm32", test))]
+mod keys;
 #[cfg(target_arch = "wasm32")]
 mod host;
 #[cfg(any(target_arch = "wasm32", test))]
