@@ -10,7 +10,7 @@ on:
       - "crates/print/**"
       - "crates/ui-egui/Cargo.toml"
       - "crates/ui-egui/src/print.rs"
-      - "crates/ui-egui/src/tests_printps.rs"
+      - "crates/ui-egui/src/tests/printps.rs"
       - "crates/ui-egui/src/network_glue.rs"
       - "crates/ui-egui/src/network_glue/**"
       - "crates/ui-egui/src/dialogs/print.rs"
