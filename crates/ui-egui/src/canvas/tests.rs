@@ -3785,6 +3785,8 @@ fn wheel_notches_zoom_at_once_without_animated_zoom() {
         app.session.execute("prefs.set", &json!({"key": "zoomWithMouseWheel", "value": wheel_zooms})).unwrap();
         let before = app.view().unwrap().zoom;
         crate::tests_synthetic::control(&mut app, &ctx, "ui.wheel", json!({"x": at.x, "y": at.y, "dy": 1, "alt": alt}));
+        // One line notch's whole zoom.
+        let expected = ctx.options(|o| f64::from(o.input_options.line_scroll_speed) * 0.01).exp();
         // The first frame the zoom moves (the event may land a frame later).
         let mut first = 1.0;
         for _ in 0..3 {
@@ -3794,7 +3796,10 @@ fn wheel_notches_zoom_at_once_without_animated_zoom() {
                 break;
             }
         }
-        assert!(first > 1.01, "the notch zooms in (wheel zooms {wheel_zooms}, alt {alt}: {first})");
+        assert!(
+            (first - expected).abs() < 1e-9,
+            "the whole notch arrives at once (wheel zooms {wheel_zooms}, alt {alt}: expected {expected}, got {first})"
+        );
         for _ in 0..30 {
             run(&mut app);
         }
