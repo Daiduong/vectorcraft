@@ -1,6 +1,6 @@
 # Bulgarian (bg) catalog. Same format as zh-hant.tsv:  context <TAB> source <TAB> translation
 # (empty context = a plain UI string; `@id` = a command id; `@plural` = "one|other" English forms,
-# translated as two Bulgarian forms "one|other"; see `plural` in i18n/mod.rs).
+# translated as two Bulgarian forms "one|other"; see `plural` in i18n.rs).
 #
 # Clean-room: every entry is written from the plain meaning of VectorCraft's English labels, in
 # ordinary Bulgarian vocabulary of vector illustration (работна област, път, опорна точка,
@@ -5127,6 +5127,7 @@ mark-style	Japanese	Японски
 theme	Appearance	Външен вид
 	Load EPS into Clipboard	Зареждане на EPS в клипборда
 @msg	an image of {w} × {h} pixels is too large to draw	изображение с размери {w} × {h} пиксела е твърде голямо за рисуване
+@msg	an image of {w} × {h} pixels is shown at reduced size	изображение с размери {w} × {h} пиксела се показва в намален размер
 @msg	the image can't be read as a texture	изображението не може да бъде прочетено като текстура
 	Fill and Stroke Controls	Управление на запълването и щриха
 	Coloring Controls	Управление на оцветяването
